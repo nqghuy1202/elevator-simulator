@@ -1,21 +1,14 @@
 import type { Direction } from './Direction.js';
 import type { DoorState } from './DoorState.js';
-import { ElevatorState, type ElevatorStateName } from './states/ElevatorState.js';
+import type { ElevatorSnapshot } from 'shared/src/index.js';
+import { ElevatorState } from './states/ElevatorState.js';
 import { IdleState } from './states/IdleState.js';
 import { DoorOpenState } from './states/DoorOpenState.js';
 
 /** Dwell duration, in ticks, that `DoorOpenState` holds the door open before deciding what's next. */
 export const DOOR_DWELL_TICKS = 3;
 
-/** Read-only external view of an Elevator's internal state. */
-export interface ElevatorSnapshot {
-  readonly id: string;
-  readonly currentFloor: number;
-  readonly direction: Direction;
-  readonly doorState: DoorState;
-  readonly stopQueue: readonly number[];
-  readonly stateName: ElevatorStateName;
-}
+export type { ElevatorSnapshot };
 
 /**
  * Encapsulated elevator domain object. All mutable fields are private;
@@ -68,6 +61,34 @@ export class Elevator {
     const inserted = this.insertStop(floor);
     if (inserted) this.state.onStopAssigned(this);
     return inserted;
+  }
+
+  /**
+   * Door Hold command (AD-2): resets the dwell timer back to
+   * `DOOR_DWELL_TICKS` so the door stays open longer, as if a fresh arrival
+   * just happened. A no-op (returns `false`) outside `DoorOpenState` —
+   * there is no dwell timer to hold open in any other state.
+   */
+  openDoor(): boolean {
+    if (this.state.name !== 'DOOR_OPEN') {
+      return false;
+    }
+    this.dwellTicksRemaining = DOOR_DWELL_TICKS;
+    return true;
+  }
+
+  /**
+   * Door Close command (AD-2): forces the remaining dwell to 0 so
+   * `DoorOpenState.onTick` closes the door on the very next tick, instead
+   * of waiting out the rest of the dwell timer. A no-op (returns `false`)
+   * outside `DoorOpenState`.
+   */
+  closeDoor(): boolean {
+    if (this.state.name !== 'DOOR_OPEN') {
+      return false;
+    }
+    this.dwellTicksRemaining = 0;
+    return true;
   }
 
   /** Read-only external view of this elevator's state. */

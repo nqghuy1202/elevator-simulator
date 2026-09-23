@@ -278,3 +278,105 @@ describe('Elevator stop-queue insertion contract (AD-6)', () => {
     expect(elevator.getSnapshot().stopQueue).toEqual([4, 7, 10]);
   });
 });
+
+describe('Elevator.openDoor() / closeDoor() (Door Hold/Close commands, AD-2)', () => {
+  it('openDoor(): in DoorOpenState, resets the dwell timer so the door stays open longer', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+
+    elevator.tick(); // dwell 3 -> 2
+    elevator.tick(); // dwell 2 -> 1
+
+    const result = elevator.openDoor();
+    expect(result).toBe(true);
+
+    // Dwell was reset to 3: two more ticks (3 -> 2 -> 1) still leave doors open.
+    elevator.tick();
+    elevator.tick();
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+  });
+
+  it('openDoor(): outside DoorOpenState is a no-op returning false', () => {
+    const elevator = new Elevator('E1', 5);
+    expect(elevator.getSnapshot().stateName).toBe('IDLE');
+
+    const result = elevator.openDoor();
+
+    expect(result).toBe(false);
+    expect(elevator.getSnapshot().stateName).toBe('IDLE');
+  });
+
+  it('closeDoor(): in DoorOpenState, forces remaining dwell to 0; door begins closing next tick', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+
+    const result = elevator.closeDoor();
+    expect(result).toBe(true);
+    expect(elevator.getDwellTicksRemaining()).toBe(0);
+    // Door itself only actually closes on the next tick -- closeDoor() only forces the timer.
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+
+    elevator.tick(); // dwell already 0 -> DoorOpenState closes the door and goes Idle (queue empty)
+
+    const snapshot = elevator.getSnapshot();
+    expect(snapshot.doorState).toBe('CLOSED');
+    expect(snapshot.stateName).toBe('IDLE');
+  });
+
+  it('closeDoor(): outside DoorOpenState is a no-op returning false', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(8); // Idle -> MovingUpState, doors closed, not DoorOpenState
+    expect(elevator.getSnapshot().stateName).toBe('MOVING_UP');
+
+    const result = elevator.closeDoor();
+
+    expect(result).toBe(false);
+    expect(elevator.getSnapshot().doorState).toBe('CLOSED');
+  });
+
+  it('openDoor(): still in DoorOpenState with dwell already at 0 (boundary right before closing): resets dwell back up, door stays open past the tick that would have closed it', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
+    elevator.tick(); // dwell 3 -> 2
+    elevator.tick(); // dwell 2 -> 1
+    elevator.tick(); // dwell 1 -> 0, door still OPEN (DoorOpenState only closes on the *next* tick after reaching 0)
+    expect(elevator.getDwellTicksRemaining()).toBe(0);
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+
+    const result = elevator.openDoor();
+
+    expect(result).toBe(true);
+    expect(elevator.getDwellTicksRemaining()).toBe(3);
+    // The tick that would have closed the door (dwell already 0) instead sees
+    // a freshly-reset dwell, so the door stays open.
+    elevator.tick();
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+  });
+
+  it('closeDoor(): still in DoorOpenState with dwell already at 0 (boundary right before closing): no-ops the timer (already 0), door closes on the very next tick regardless', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
+    elevator.tick(); // dwell 3 -> 2
+    elevator.tick(); // dwell 2 -> 1
+    elevator.tick(); // dwell 1 -> 0, door still OPEN
+    expect(elevator.getDwellTicksRemaining()).toBe(0);
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+
+    const result = elevator.closeDoor();
+
+    expect(result).toBe(true);
+    expect(elevator.getDwellTicksRemaining()).toBe(0);
+    expect(elevator.getSnapshot().doorState).toBe('OPEN'); // still open until the next tick actually runs
+
+    elevator.tick(); // dwell already 0 -> closes this tick, queue empty -> Idle
+
+    const snapshot = elevator.getSnapshot();
+    expect(snapshot.doorState).toBe('CLOSED');
+    expect(snapshot.stateName).toBe('IDLE');
+  });
+});

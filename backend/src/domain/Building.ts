@@ -63,6 +63,37 @@ export class Building {
     this.dispatcher.handleHallCall(floor, direction);
   }
 
+  /**
+   * Handle a Car Call for `floor` on the elevator identified by
+   * `elevatorId` (in-cabin button press). Silent no-op if `elevatorId`
+   * doesn't match any managed Elevator — this is a client-input boundary,
+   * distinct from `Dispatcher.tryAssign`'s internal-consistency throw.
+   */
+  handleCarCall(elevatorId: string, floor: number): void {
+    const elevator = this.findElevator(elevatorId);
+    elevator?.assignCarCall(floor);
+  }
+
+  /**
+   * Handle a Door Hold for the elevator identified by `elevatorId`. Silent
+   * no-op if `elevatorId` doesn't match any managed Elevator, or if that
+   * elevator isn't currently holding its doors open (per `Elevator.openDoor`).
+   */
+  handleDoorHold(elevatorId: string): void {
+    const elevator = this.findElevator(elevatorId);
+    elevator?.openDoor();
+  }
+
+  /**
+   * Handle a Door Close for the elevator identified by `elevatorId`. Silent
+   * no-op if `elevatorId` doesn't match any managed Elevator, or if that
+   * elevator's doors aren't currently open (per `Elevator.closeDoor`).
+   */
+  handleDoorClose(elevatorId: string): void {
+    const elevator = this.findElevator(elevatorId);
+    elevator?.closeDoor();
+  }
+
   /** Read-only snapshots of every managed Elevator, in fixed (construction) order. */
   getElevatorSnapshots(): ElevatorSnapshot[] {
     return this.elevators.map((elevator) => elevator.getSnapshot());
@@ -76,5 +107,14 @@ export class Building {
   /** The floor count this Building was configured with. */
   getFloorCount(): number {
     return this.floors;
+  }
+
+  /**
+   * Find a managed Elevator by id, or `undefined` if `elevatorId` doesn't
+   * match any of them. Backs the silent-no-op-on-unknown-id contract shared
+   * by `handleCarCall`/`handleDoorHold`/`handleDoorClose`.
+   */
+  private findElevator(elevatorId: string): Elevator | undefined {
+    return this.elevators.find((elevator) => elevator.id === elevatorId);
   }
 }

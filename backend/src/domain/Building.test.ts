@@ -255,3 +255,71 @@ describe('Building introspection never exposes a live Elevator', () => {
     expect(pending).toEqual([{ floor: 5, direction: 'DOWN' }]);
   });
 });
+
+describe('Building.handleCarCall routing (FR-4)', () => {
+  it('routes a Car Call to the named elevator, queuing the floor via assignCarCall', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    building.handleHallCall(1, 'UP'); // E1 (idle, at floor 1) opens its doors immediately (same-floor fast path)
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+
+    building.handleCarCall('E1', 7);
+
+    expect(building.getElevatorSnapshots()[0]?.stopQueue).toContain(7);
+  });
+
+  it('unknown elevatorId is a silent no-op: no elevator state changes, nothing thrown', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    const before = building.getElevatorSnapshots();
+
+    expect(() => building.handleCarCall('GHOST', 3)).not.toThrow();
+
+    expect(building.getElevatorSnapshots()).toEqual(before);
+  });
+});
+
+describe('Building.handleDoorHold routing (FR-5)', () => {
+  it('resets the named elevator dwell timer while its doors are open', () => {
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = 3
+    building.tick(); // dwell 3 -> 2
+    building.tick(); // dwell 2 -> 1
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+
+    building.handleDoorHold('E1');
+
+    building.tick(); // dwell reset to 3, now 3 -> 2
+    building.tick(); // 2 -> 1
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+  });
+
+  it('unknown elevatorId is a silent no-op: no elevator state changes, nothing thrown', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    const before = building.getElevatorSnapshots();
+
+    expect(() => building.handleDoorHold('GHOST')).not.toThrow();
+
+    expect(building.getElevatorSnapshots()).toEqual(before);
+  });
+});
+
+describe('Building.handleDoorClose routing (FR-5)', () => {
+  it('forces the named elevator dwell to 0; door begins closing next tick', () => {
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = 3
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+
+    building.handleDoorClose('E1');
+    building.tick(); // dwell already 0 -> door closes this tick
+
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('CLOSED');
+  });
+
+  it('unknown elevatorId is a silent no-op: no elevator state changes, nothing thrown', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    const before = building.getElevatorSnapshots();
+
+    expect(() => building.handleDoorClose('GHOST')).not.toThrow();
+
+    expect(building.getElevatorSnapshots()).toEqual(before);
+  });
+});

@@ -1,7 +1,7 @@
 import type { Elevator } from '../Elevator.js';
+import type { ElevatorStateName } from 'shared/src/index.js';
 
-/** Identifier for each concrete ElevatorState. */
-export type ElevatorStateName = 'IDLE' | 'MOVING_UP' | 'MOVING_DOWN' | 'DOOR_OPEN';
+export type { ElevatorStateName };
 
 /**
  * Abstract root of the Elevator state hierarchy (state pattern).

@@ -9,10 +9,16 @@
   "scripts": {
     "test": "vitest run",
     "build": "tsc --noEmit",
-    "demo": "tsx src/demo.ts"
+    "demo": "tsx src/demo.ts",
+    "start": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "shared": "*",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "socket.io-client": "^4.8.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1"
