@@ -14,7 +14,7 @@ export class IdleState extends ElevatorState {
     this.dispatchIfNeeded(elevator);
   }
 
-  override onHallAssigned(elevator: Elevator): void {
+  override onStopAssigned(elevator: Elevator): void {
     this.dispatchIfNeeded(elevator);
   }
 
@@ -26,7 +26,7 @@ export class IdleState extends ElevatorState {
 
     const floor = elevator.getCurrentFloor();
     if (elevator.hasStop(floor)) {
-      elevator.removeStop(floor);
+      elevator.completeStop(floor);
       elevator.openDoorForArrival();
       return;
     }

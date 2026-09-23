@@ -17,7 +17,7 @@ describe('Dispatcher.handleHallCall', () => {
     expect(strategy.selectElevator).toHaveBeenCalledTimes(1);
   });
 
-  it('assigns the Hall Call to the eligible/selected elevator via addStop', () => {
+  it('assigns the Hall Call to the eligible/selected elevator via assignHallCall', () => {
     const elevator = new Elevator('E1', 1);
     const dispatcher = new Dispatcher([elevator], new NearestCarStrategy());
 
@@ -39,7 +39,7 @@ describe('Dispatcher.handleHallCall', () => {
 
   it('PRD worked example: elevator moving 1->10, currently at floor 3, accepts an UP call at 5', () => {
     const elevator = new Elevator('E1', 1);
-    elevator.addStop(10); // Idle -> MovingUpState
+    elevator.assignHallCall(10); // Idle -> MovingUpState
     elevator.tick(); // 1 -> 2
     elevator.tick(); // 2 -> 3
     expect(elevator.getSnapshot().currentFloor).toBe(3);
@@ -53,7 +53,7 @@ describe('Dispatcher.handleHallCall', () => {
 
   it('PRD worked example: elevator moving 1->10, currently at floor 3, rejects a DOWN call at 5', () => {
     const elevator = new Elevator('E1', 1);
-    elevator.addStop(10); // Idle -> MovingUpState
+    elevator.assignHallCall(10); // Idle -> MovingUpState
     elevator.tick(); // 1 -> 2
     elevator.tick(); // 2 -> 3
     expect(elevator.getSnapshot().currentFloor).toBe(3);
@@ -67,7 +67,7 @@ describe('Dispatcher.handleHallCall', () => {
 
   it('when no elevator is eligible, no stopQueue changes and nothing throws', () => {
     const movingAway = new Elevator('E1', 9);
-    movingAway.addStop(1); // Idle -> MovingDownState, heading away from floor 5 UP call
+    movingAway.assignHallCall(1); // Idle -> MovingDownState, heading away from floor 5 UP call
     expect(movingAway.getSnapshot().direction).toBe('DOWN');
 
     const dispatcher = new Dispatcher([movingAway], new NearestCarStrategy());
@@ -97,7 +97,7 @@ describe('Dispatcher.handleHallCall', () => {
 describe('Dispatcher Pending Call re-evaluation', () => {
   it('stores an unassignable Hall Call as pending instead of dropping it (no eligible elevator at request time)', () => {
     const movingAway = new Elevator('E1', 9);
-    movingAway.addStop(1); // Idle -> MovingDownState, heading away from a floor 5 UP call
+    movingAway.assignHallCall(1); // Idle -> MovingDownState, heading away from a floor 5 UP call
     expect(movingAway.getSnapshot().direction).toBe('DOWN');
 
     const dispatcher = new Dispatcher([movingAway], new NearestCarStrategy());
@@ -109,7 +109,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
   it('re-evaluate with still no eligible elevator: call remains pending, not dropped, not duplicated', () => {
     const movingAway = new Elevator('E1', 9);
-    movingAway.addStop(1); // Idle -> MovingDownState
+    movingAway.assignHallCall(1); // Idle -> MovingDownState
     const dispatcher = new Dispatcher([movingAway], new NearestCarStrategy());
     dispatcher.handleHallCall(5, 'UP');
 
@@ -120,7 +120,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
   it('re-evaluate after an elevator becomes eligible: call is assigned and removed from pending', () => {
     const elevator = new Elevator('E1', 9);
-    elevator.addStop(1); // Idle -> MovingDownState, heading toward floor 1
+    elevator.assignHallCall(1); // Idle -> MovingDownState, heading toward floor 1
     const dispatcher = new Dispatcher([elevator], new NearestCarStrategy());
     dispatcher.handleHallCall(5, 'UP'); // not eligible while moving DOWN
     expect(dispatcher.getPendingCalls()).toHaveLength(1);
@@ -151,7 +151,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
   it('a Hall Call already pending for the same (floor, direction) is not added a second time', () => {
     const movingAway = new Elevator('E1', 9);
-    movingAway.addStop(1); // Idle -> MovingDownState
+    movingAway.assignHallCall(1); // Idle -> MovingDownState
     const dispatcher = new Dispatcher([movingAway], new NearestCarStrategy());
 
     dispatcher.handleHallCall(5, 'UP');
@@ -164,7 +164,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
     // Sole elevator: will become Idle and pick up the UP call at floor 3
     // first, which puts it into MovingUpState -- ineligible for a DOWN call.
     const elevator = new Elevator('E1', 9);
-    elevator.addStop(1); // Idle -> MovingDownState, heading toward floor 1
+    elevator.assignHallCall(1); // Idle -> MovingDownState, heading toward floor 1
     const dispatcher = new Dispatcher([elevator], new NearestCarStrategy());
 
     // Both calls are ineligible while the elevator moves DOWN from floor 9 toward 1:
@@ -194,7 +194,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
   it('assignment within a pass affects a later call in the same pass (both pending calls serviced by a now-idle elevator)', () => {
     const idling = new Elevator('E1', 5);
-    idling.addStop(9); // Idle -> MovingUpState, will empty its queue at floor 9 and go Idle
+    idling.assignHallCall(9); // Idle -> MovingUpState, will empty its queue at floor 9 and go Idle
     const dispatcher = new Dispatcher([idling], new NearestCarStrategy());
 
     // While E1 is busy moving toward 9 (DOWN calls are behind it / wrong
@@ -215,7 +215,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
     dispatcher.reevaluatePending();
 
     // Both calls are serviceable by the same now-idle elevator within a
-    // single pass: the first call's addStop (onHallAssigned) moves E1 out
+    // single pass: the first call's assignHallCall (onStopAssigned) moves E1 out
     // of Idle into MovingDownState before the second call is evaluated,
     // and the second call's eligibility reflects that new state (moving
     // DOWN, floor 3 still ahead) rather than a stale Idle snapshot.
@@ -225,7 +225,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
   it('reevaluatePending is pull-based: ticking elevators alone never auto-assigns or drops a pending call', () => {
     const elevator = new Elevator('E1', 9);
-    elevator.addStop(1); // Idle -> MovingDownState
+    elevator.assignHallCall(1); // Idle -> MovingDownState
     const dispatcher = new Dispatcher([elevator], new NearestCarStrategy());
     dispatcher.handleHallCall(5, 'UP');
     expect(dispatcher.getPendingCalls()).toHaveLength(1);
@@ -248,5 +248,44 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
     expect(dispatcher.getPendingCalls()).toEqual([]);
     expect(elevator.getSnapshot().stopQueue).toEqual([]);
+  });
+
+  it('deferred Story 1.3 edge case: idle elevator at floor 5, two opposite-direction pending calls both reach reevaluatePending() in one pass -- first is genuinely assigned, second is re-pended instead of silently dropped', () => {
+    // Elevator starts moving toward floor 5 as its own destination (not via
+    // Dispatcher), so it is busy/ineligible while both Hall Calls for floor
+    // 5 are requested, and ends up idle exactly at floor 5 with doors
+    // closed once it arrives, dwells, and the door-close cycle completes.
+    const elevator = new Elevator('E1', 1);
+    elevator.assignCarCall(5); // Idle -> MovingUpState, heading toward floor 5
+    const dispatcher = new Dispatcher([elevator], new NearestCarStrategy());
+
+    dispatcher.handleHallCall(5, 'UP');
+    dispatcher.handleHallCall(5, 'DOWN');
+    expect(dispatcher.getPendingCalls()).toEqual([
+      { floor: 5, direction: 'UP' },
+      { floor: 5, direction: 'DOWN' },
+    ]);
+
+    // Ride up to floor 5: arrives, dwells, queue empties -> Idle at floor 5.
+    for (let i = 0; i < 4; i++) elevator.tick(); // 1 -> 5, arrives, door opens
+    for (let i = 0; i < 4; i++) elevator.tick(); // dwell (3 ticks) + 1 more -> door closes, queue empty -> Idle
+    expect(elevator.getSnapshot().stateName).toBe('IDLE');
+    expect(elevator.getSnapshot().currentFloor).toBe(5);
+    expect(elevator.getSnapshot().doorState).toBe('CLOSED');
+
+    dispatcher.reevaluatePending();
+
+    // Both pending calls are re-evaluated in one pass, FIFO. The first
+    // (5, UP) finds the idle elevator eligible and assignHallCall(5)
+    // genuinely inserts (doors closed) -- serviced immediately by
+    // IdleState's same-floor fast path, which leaves doors OPEN. The
+    // second (5, DOWN) also finds the elevator eligible (direction reads
+    // IDLE going into this pass's snapshot -- taken fresh per call), but
+    // its assignHallCall(5) is a same-floor/doors-open no-op by the time
+    // it runs, so Dispatcher correctly treats it as unassigned and
+    // re-pends it instead of silently dropping it.
+    expect(dispatcher.getPendingCalls()).toEqual([{ floor: 5, direction: 'DOWN' }]);
+    expect(elevator.getSnapshot().stopQueue).toEqual([]);
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
   });
 });

@@ -4,9 +4,9 @@ import type { HallCallRequest, SchedulingStrategy } from './scheduling/Schedulin
 /**
  * Orchestrates Hall Call assignment: takes a snapshot of every managed
  * `Elevator`, delegates elevator selection to a `SchedulingStrategy`, and
- * — if one is selected — calls `addStop()` on the matching live `Elevator`.
- * Holds only the `SchedulingStrategy` interface; never branches on the
- * concrete strategy's type.
+ * — if one is selected — calls `assignHallCall()` on the matching live
+ * `Elevator`. Holds only the `SchedulingStrategy` interface; never branches
+ * on the concrete strategy's type.
  *
  * A Hall Call that cannot be assigned at request time is stored as a
  * Pending Call instead of being dropped, and is retried by
@@ -25,9 +25,9 @@ export class Dispatcher {
 
   /**
    * Handle a Hall Call for `floor` in `direction`. If the strategy selects
-   * an eligible elevator, queues the stop on it via `addStop()`. If no
-   * elevator is eligible, the call is stored as a Pending Call instead of
-   * being dropped.
+   * an eligible elevator, queues the stop on it via `assignHallCall()`. If
+   * no elevator is eligible, the call is stored as a Pending Call instead
+   * of being dropped.
    */
   handleHallCall(floor: number, direction: 'UP' | 'DOWN'): void {
     const request: HallCallRequest = { floor, direction };
@@ -67,8 +67,14 @@ export class Dispatcher {
 
   /**
    * Attempt to assign `request` to an eligible elevator via a fresh
-   * snapshot → strategy → addStop pass. Returns whether assignment
-   * succeeded; never mutates Pending Call storage itself.
+   * snapshot → strategy → assignHallCall pass. Returns whether assignment
+   * actually happened; never mutates Pending Call storage itself.
+   *
+   * `assignHallCall`'s `false` return (e.g. the selected elevator's
+   * insertion turned out to be a same-floor/doors-open no-op by the time
+   * this runs) is treated identically to "no eligible elevator" — the
+   * call is not considered assigned, closing the Story 1.3 edge case
+   * where such a call would otherwise be silently dropped.
    */
   private tryAssign(request: HallCallRequest): boolean {
     const snapshots = this.elevators.map((elevator) => elevator.getSnapshot());
@@ -82,8 +88,7 @@ export class Dispatcher {
     if (!elevator) {
       throw new Error(`Dispatcher: strategy selected unknown elevator id "${selected.id}"`);
     }
-    elevator.addStop(request.floor);
-    return true;
+    return elevator.assignHallCall(request.floor);
   }
 
   /** Store `request` as pending, unless one for the same (floor, direction) is already pending. */

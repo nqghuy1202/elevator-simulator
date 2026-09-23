@@ -48,18 +48,26 @@ export class Elevator {
   }
 
   /**
-   * Queue a stop at `floor` (Hall/Car Call insertion in later stories).
-   * Story 1.1 only needs a minimal internal queue good enough to drive
-   * correct state transitions; a single insertStop/completeStop contract
-   * is formalized in Story 1.4. Mutation stays private to `Elevator` so
-   * that refactor stays contained here.
+   * Assign a Hall Call at `floor`. The single external entry point Hall
+   * Call dispatch (`Dispatcher`) uses; routes through `insertStop` like
+   * `assignCarCall` does. Returns whether the floor was actually queued.
    */
-  addStop(floor: number): void {
-    if (this.stopQueue.includes(floor)) {
-      return;
-    }
-    this.stopQueue.push(floor);
-    this.state.onHallAssigned(this);
+  assignHallCall(floor: number): boolean {
+    const inserted = this.insertStop(floor);
+    if (inserted) this.state.onStopAssigned(this);
+    return inserted;
+  }
+
+  /**
+   * Assign a Car Call at `floor` (in-cabin button press). Routes through
+   * `insertStop` like `assignHallCall` does. Returns whether the floor was
+   * actually queued. Not yet wired to any caller in production code —
+   * Epic 2 introduces the in-cabin control surface that will call this.
+   */
+  assignCarCall(floor: number): boolean {
+    const inserted = this.insertStop(floor);
+    if (inserted) this.state.onStopAssigned(this);
+    return inserted;
   }
 
   /** Read-only external view of this elevator's state. */
@@ -77,7 +85,8 @@ export class Elevator {
   // ---------------------------------------------------------------------
   // Internal API — intended for use only by ElevatorState handlers, which
   // receive `this` Elevator as an argument. Not part of the public command
-  // surface; external callers should use addStop()/getSnapshot() above.
+  // surface; external callers should use assignHallCall()/assignCarCall()/
+  // getSnapshot() above.
   // ---------------------------------------------------------------------
 
   /** Transition to a new state. Called only by state handlers. */
@@ -117,8 +126,51 @@ export class Elevator {
     return this.stopQueue.length === 0;
   }
 
-  /** Remove `floor` from the queue (called on arrival at a queued stop). */
-  removeStop(floor: number): void {
+  /**
+   * The single insertion path behind `assignHallCall`/`assignCarCall`
+   * (AD-6). No-ops (returns `false`) when `floor` is already queued, or
+   * when `floor` equals `currentFloor` while the door isn't `CLOSED` (a
+   * duplicate of a stop already being serviced). Otherwise inserts `floor`
+   * in position consistent with the current `Direction` and returns `true`.
+   */
+  private insertStop(floor: number): boolean {
+    if (this.stopQueue.includes(floor)) {
+      return false;
+    }
+    if (floor === this.currentFloor && this.doorState !== 'CLOSED') {
+      return false;
+    }
+
+    const insertionIndex = this.findInsertionIndex(floor);
+    this.stopQueue.splice(insertionIndex, 0, floor);
+    return true;
+  }
+
+  /**
+   * Position `floor` within `stopQueue` consistent with the current
+   * `Direction`: ascending order while moving/idle-toward-UP, descending
+   * while moving DOWN. When `Direction` is `IDLE` (empty queue, first
+   * insert), any position is equivalent since `IdleState` decides
+   * direction fresh from the post-insertion queue — append is simplest.
+   */
+  private findInsertionIndex(floor: number): number {
+    if (this.direction === 'DOWN') {
+      const index = this.stopQueue.findIndex((queued) => queued < floor);
+      return index === -1 ? this.stopQueue.length : index;
+    }
+
+    // UP or IDLE: ascending order.
+    const index = this.stopQueue.findIndex((queued) => queued > floor);
+    return index === -1 ? this.stopQueue.length : index;
+  }
+
+  /**
+   * The sole removal path (AD-6): removes `floor` from the queue. Called
+   * only from arrival handlers (`MovingState.onArriveFloor`, and the
+   * same-floor fast paths in `IdleState`/`DoorOpenState`) — no other
+   * method shrinks the queue.
+   */
+  completeStop(floor: number): void {
     const index = this.stopQueue.indexOf(floor);
     if (index !== -1) {
       this.stopQueue.splice(index, 1);

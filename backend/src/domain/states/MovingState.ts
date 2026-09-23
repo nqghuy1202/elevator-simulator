@@ -28,7 +28,7 @@ export abstract class MovingState extends ElevatorState {
       return;
     }
 
-    elevator.removeStop(floor);
+    elevator.completeStop(floor);
     elevator.openDoorForArrival();
   }
 }

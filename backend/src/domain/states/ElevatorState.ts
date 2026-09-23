@@ -31,11 +31,11 @@ export abstract class ElevatorState {
 
   /**
    * Called when a new stop is queued for this elevator while it is in this
-   * state (e.g. a Hall/Car Call assignment). Idle needs this to kick off
-   * movement; other states may leave the base no-op since their `onTick`
-   * already inspects the queue.
+   * state (Hall Call or Car Call insertion via `insertStop`). Idle needs
+   * this to kick off movement; other states may leave the base no-op since
+   * their `onTick` already inspects the queue.
    */
-  onHallAssigned(_elevator: Elevator): void {
+  onStopAssigned(_elevator: Elevator): void {
     // No-op by default.
   }
 }

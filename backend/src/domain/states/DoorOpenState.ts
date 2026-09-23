@@ -22,7 +22,7 @@ export class DoorOpenState extends ElevatorState {
 
     const floor = elevator.getCurrentFloor();
     if (elevator.hasStop(floor)) {
-      elevator.removeStop(floor);
+      elevator.completeStop(floor);
       elevator.openDoorForArrival();
       return;
     }
