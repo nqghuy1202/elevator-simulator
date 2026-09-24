@@ -14,8 +14,19 @@ import { connectionStatusChanged } from '../store/uiSlice.js';
 
 const DEFAULT_BACKEND_URL = 'http://localhost:3001';
 
-function resolveBackendUrl(): string {
-  return import.meta.env['VITE_BACKEND_URL'] ?? DEFAULT_BACKEND_URL;
+/**
+ * `VITE_BACKEND_URL=''` (set at container build time, Story 3.2) resolves
+ * to `undefined` here rather than the literal empty string, because
+ * `io(undefined)` is what makes socket.io-client default to same-origin —
+ * passing `''` itself would not (it only treats null/undefined that way).
+ * Same-origin is what lets the containerized deployment's Nginx
+ * `/socket.io/` proxy actually carry the traffic instead of the browser
+ * bypassing it. Local dev leaves the env var unset, so it keeps using
+ * `DEFAULT_BACKEND_URL`.
+ */
+function resolveBackendUrl(): string | undefined {
+  const configured = import.meta.env['VITE_BACKEND_URL'];
+  return configured === '' ? undefined : (configured ?? DEFAULT_BACKEND_URL);
 }
 
 /** Return type of `useBuildingSocket` — the client emit surface built on top of the held socket ref. */
