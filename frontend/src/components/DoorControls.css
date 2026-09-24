@@ -1,29 +1,46 @@
 .door-controls {
   display: flex;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: 4px;
+  margin-left: auto;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.door-controls--active {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .door-controls__button {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background-color: var(--color-card);
   color: var(--color-foreground);
-  font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
-  transition: border-color 150ms;
+  transition:
+    border-color 150ms,
+    transform 100ms;
 }
 
-.door-controls__button:hover {
+.door-controls__button:hover:not(:disabled) {
   border-color: var(--color-primary);
+}
+
+.door-controls__button:active:not(:disabled) {
+  transform: scale(0.9);
 }
 
 .door-controls__button:focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
+}
+
+.door-controls__button:disabled {
+  cursor: default;
 }

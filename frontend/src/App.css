@@ -1,33 +1,117 @@
-.app {
+.page {
+  max-width: 1420px;
+  margin: 0 auto;
   min-height: 100vh;
-  padding: var(--space-6);
-}
-
-.app__header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-6);
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-4) var(--space-12);
 }
 
-.app__title {
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
-}
-
-.app__dashboard {
+.header {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-6);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-5);
 }
 
-.app__shaft-view {
+.header__identity h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.header__identity p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted-foreground);
+  font-size: 14px;
+}
+
+.header__right {
   display: flex;
+  align-items: center;
   gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.stat-strip {
+  display: flex;
+  gap: var(--space-2);
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-4);
+  min-width: 84px;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--color-border);
+}
+
+.stat__value {
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1.2;
+}
+
+.stat__value--pending {
+  color: var(--color-pending);
+}
+
+.stat__label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+  margin-top: 2px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.shafts {
+  display: flex;
+  gap: var(--space-5);
+  overflow-x: auto;
 }
 
 .app__loading {
   color: var(--color-muted-foreground);
+}
+
+@media (max-width: 720px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .shafts {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  /* Higher specificity than ElevatorCar.css's own `.elevator-car` rule so
+     this override wins regardless of CSS bundle/import order. */
+  .board .elevator-car {
+    min-width: 0;
+  }
 }

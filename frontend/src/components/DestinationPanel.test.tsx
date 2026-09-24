@@ -5,7 +5,7 @@ import { DestinationPanel } from './DestinationPanel.js';
 afterEach(() => cleanup());
 
 describe('DestinationPanel: FR-3 floor offering', () => {
-  it('offers every floor 1..floors except currentFloor', () => {
+  it('offers every floor 1..floors, including currentFloor', () => {
     render(
       <DestinationPanel
         elevatorId="E1"
@@ -17,12 +17,11 @@ describe('DestinationPanel: FR-3 floor offering', () => {
     );
 
     for (let floor = 1; floor <= 10; floor++) {
-      if (floor === 5) continue;
       expect(screen.getByLabelText(`Car call floor ${floor}`)).toBeInTheDocument();
     }
   });
 
-  it('excludes the elevator current floor from the offered buttons', () => {
+  it('renders the current floor lit/disabled instead of omitting it (matches a real car panel)', () => {
     render(
       <DestinationPanel
         elevatorId="E1"
@@ -33,7 +32,24 @@ describe('DestinationPanel: FR-3 floor offering', () => {
       />,
     );
 
-    expect(screen.queryByLabelText('Car call floor 5')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Car call floor 5')).toBeDisabled();
+  });
+
+  it('clicking the disabled current-floor button does not emit onCarCall', () => {
+    const onCarCall = vi.fn();
+    render(
+      <DestinationPanel
+        elevatorId="E1"
+        currentFloor={5}
+        floors={10}
+        stopQueue={[]}
+        onCarCall={onCarCall}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Car call floor 5'));
+
+    expect(onCarCall).not.toHaveBeenCalled();
   });
 });
 

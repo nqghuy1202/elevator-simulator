@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ascent — Dashboard (warmer instrument panel)</title>
+<!--
+  Governs: DESIGN.md (Ascent) — Brand & Style, Colors, Typography, Layout & Spacing,
+  Elevation & Depth, Shapes, Components. EXPERIENCE.md — Information Architecture,
+  Component Patterns (Connection badge, Hall call button, Elevator cabin, Destination
+  Panel, Door Controls), State Patterns (hall call pending, door open).
+
+  Update pass (this file): keeps every Ascent token as-is (light mode only, four
+  semantic hues, Plus Jakarta Sans, no gradient/no illustration — committed single
+  visual world per Brand & Style, so no dark-mode media query here by design).
+  Changes are compositional only:
+    1. Page shell — dashboard now sits centered in a max-width column with a real
+       header band, instead of pinned to the top-left corner of the viewport.
+    2. Header gains a "Building" stat strip (floors / elevators / pending calls) —
+       fills the previously-empty header row with glanceable data, not decoration.
+    3. Elevation bumped from 0 1px 2px/.06 to a slightly softer, single-weight
+       0 4px 12px/.06 + 0 1px 2px/.05 — still one shadow "weight" per Do's/Don'ts,
+       just warmer falloff. Radius bumped rounded.md -> rounded.lg on containers.
+    4. Destination Panel + Door Controls stay grouped as ONE cluster, PER CAR,
+       inside the shaft (not the Hall Call rail — two cars can stop at the
+       same floor at once, so identity must stay tied to the shaft column).
+    5. No more absolute overlay at all (per user correction). The instant a
+       car's doors open, its animated cabin box (used only for the sliding
+       transit animation) is hidden, and that exact floor's OWN floor-cell —
+       still normal document flow, still exactly --row-height tall, never
+       taller — turns green and lays out Hold/Close + all 10 floor buttons
+       (current floor's own button shown lit/disabled) in a single row. Since
+       height can't grow, width does instead: that car's whole shaft column
+       widens (via flex-grow, animated) while the other two shrink to make
+       room, so everything fits on one line without page-level reflow in
+       either axis. A local `overflow-x: auto` on that one row is a safety
+       net only, not the expected path.
+    6. Symbolic "climbing" trail: as a car travels, each floor-cell it steps
+       through briefly lights up (blue, matching the cabin's own in-transit
+       color) then fades, in step with the cabin's own movement — reinforces
+       the sense of climbing/descending beyond just the cabin box sliding.
+    7. Page shell widened (max-width 1120 -> 1280px, side padding trimmed
+       space-5 -> space-4) to reclaim room for content, particularly the
+       expanded shaft column's floor-button row from change #5.
+    8. A car's resting position (idle, doors closed) is now ALSO marked by a
+       persistent tint + left accent on that floor-cell, not just the small
+       moving cabin box — per user feedback that the box's transit-only
+       up/down arrow icon wasn't enough to place 3 separate cars at rest.
+       The cabin box still does the sliding animation during transit; the
+       floor-cell marker only appears once a car settles and clears the
+       instant it starts moving again.
+    9. Color pass via ui-ux-pro-max (Analytics Dashboard palette match + WCAG
+       contrast check): every token here already matched that catalog's
+       profile almost exactly EXCEPT Open Green -- #16A34A carries white text
+       (badge, cabin fill, the new floor-cell panel header) at only ~3.3:1,
+       under the 4.5:1 floor. Darkened to #15803D (~5:1, same hue) — this is
+       a real DESIGN.md token fix, not just a mock tweak, since the shipped
+       app's ConnectionBadge/ElevatorCar have the identical white-on-#16A34A
+       pattern. Also nudged the ambient (non-active) floor-cell number from
+       0.55 to 0.7 opacity for a touch more legibility on that de-emphasized
+       label. Every other token, plus the Plus Jakarta Sans pairing, verified
+       against the catalog as already well-formed — no other changes.
+    10. Hall Call rail rows now line up with each shaft's floor-cell rows
+       (user-flagged: they didn't, since each shaft had an extra id+chip
+       header the rail lacked). Replaced the two separate section headings
+       ("Hall Calls" / "Shaft View", each with a descriptive subtitle) and
+       the per-car `.car__head` with ONE shared `.col-head` (fixed 24px
+       height, no subtitle) used identically above the rail AND above each
+       shaft — same height by construction, not by matching font metrics,
+       so floor 10's rail row and floor 10's cell in every shaft column sit
+       at the exact same Y regardless of content or rendering quirks.
+    11. The resting-position cue from change #8 read as too faint — turns
+       out the cabin box (position:absolute, nearly full row width/height)
+       sits ON TOP of its own floor-cell and covers almost all of the tint
+       added there, so that cue barely showed. Fixed at the source: the
+       cabin box itself now gets a visible blue ring (.cabin--here) while
+       idle+closed, since that's the part that's actually never obscured.
+    12. That ring was an OUTER box-shadow (spread+blur), which — since
+       nothing clips between individual floor-cell rows, only around the
+       whole shaft — visually bled a few px into the floor above/below.
+       Switched to an INSET ring: same "highlighted" read, but geometrically
+       cannot spill past the cabin's own box, so it never encroaches on a
+       neighboring floor even when another car happens to rest one row away.
+    13. The --here state's floor number had briefly become a padded pill
+       (min-width 22px + 8px horizontal padding), which was enough extra
+       width demand to widen the whole shaft column when it appeared
+       (user-flagged). Reverted that number back to plain bold colored text
+       (no padding/min-width) — the cabin's inset ring already carries the
+       "here" signal, so the row-level number never needed to be a badge.
+    14. REVERSED change #5's column-widening: user rejected it after seeing
+       it live — all 3 shaft columns now stay exactly equal width at ALL
+       times, doors open or not. Since height already can't grow either,
+       the doors-open row (Hold/Close + 10 floor buttons, ~430px of content)
+       genuinely cannot fit a ~250-320px column on one static line, so that
+       row now scrolls horizontally within itself (visible thin scrollbar as
+       the affordance, scroll-snap so buttons land cleanly) — the only
+       remaining axis, since both height and width are now hard constraints.
+    15. Per user request: the floor-cell panel row no longer shows a "Fl N"
+       label or Hold/Close — it's ONLY the 10 floor buttons now (less to
+       scroll through). Hold/Close moved up into that car's own col-head,
+       right of the chip — always laid out there (visibility, not display,
+       same fixed-box principle as everywhere else) so col-head's height
+       never changes when a door opens/closes; they're just inert until
+       that car's doors are actually open.
+    15b. Per user request, columns are now wide enough (min-width 344px,
+       page max-width widened 1280 -> 1420px) that the 10-button floor-cell
+       row fits on one line with NO scrolling on a normal window, instead of
+       relying on the horizontal-scroll fallback from change #14. That
+       fallback still exists (.shafts itself scrolls, contained, not the
+       whole page) for windows narrower than that, so nothing breaks there.
+    16. Per user request, bumped --row-height 52 -> 58px to make
+       floor-cell--here easier to read. Deliberately global (rail rows AND
+       every shaft row), not a one-off taller row for --here alone — user
+       flagged that a per-state height change would re-break the row
+       alignment fixed in change #10 (every row below it in that column
+       would drift from the rail). Also nudged --here's own tint/border a
+       touch stronger now that there's a bit more room to show it in.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+
+    /* Ascent tokens — unchanged from DESIGN.md */
+    --color-background: #F8FAFC;
+    --color-foreground: #1E293B;
+    --color-card: #FFFFFF;
+    --color-card-foreground: #1E293B;
+    --color-primary: #1E40AF;
+    --color-on-primary: #FFFFFF;
+    --color-secondary: #3B82F6;
+    --color-muted: #E9EEF6;
+    --color-muted-foreground: #475569;
+    --color-border: #DBEAFE;
+    --color-ring: #1E40AF;
+    --color-pending: #D97706;
+    --color-on-pending: #1F1300;
+    /* Darkened from DESIGN.md's #16A34A: white text on that shade only hits
+       ~3.3:1 contrast (badge, cabin fill, floor-cell panel header all set
+       on-open text white at normal size) — below the 4.5:1 floor. #15803D
+       is the same green hue, just deep enough to clear ~5:1, and reads even
+       more like a considered "positive" dashboard green than the brighter
+       shade (verified against ui-ux-pro-max's Analytics Dashboard profile
+       and WCAG contrast math — see the reply that shipped this pass). */
+    --color-open: #15803D;
+    --color-on-open: #FFFFFF;
+    --color-destructive: #DC2626;
+    --color-on-destructive: #FFFFFF;
+
+    --font-family: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+    /* radius — bumped md -> lg on containers for the warmer pass */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-12: 48px;
+
+    --row-height: 58px;
+
+    /* elevation — one weight, everywhere it's used */
+    --shadow-card: 0 4px 12px rgba(30, 64, 175, 0.06), 0 1px 2px rgba(30, 64, 175, 0.05);
+
+    background: var(--color-background);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-family);
+    font-size: 15px;
+    line-height: 1.5;
+    padding: var(--space-8) var(--space-4) var(--space-12);
+  }
+  button { font: inherit; color: inherit; }
+
+  .page {
+    max-width: 1420px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  /* ---------- Header ---------- */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+  }
+  .header__identity h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .header__identity p {
+    margin: var(--space-1) 0 0;
+    color: var(--color-muted-foreground);
+    font-size: 14px;
+  }
+  .header__right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .stat-strip {
+    display: flex;
+    gap: var(--space-2);
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-2) var(--space-2);
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-1) var(--space-4);
+    min-width: 84px;
+  }
+  .stat + .stat { border-left: 1px solid var(--color-border); }
+  .stat__value {
+    font-variant-numeric: tabular-nums;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.2;
+  }
+  .stat__value--pending { color: var(--color-pending); }
+  .stat__label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
+    margin-top: 2px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: var(--color-open);
+    color: var(--color-on-open);
+    box-shadow: var(--shadow-card);
+  }
+  .badge__dot {
+    width: 8px; height: 8px; border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.35);
+  }
+
+  /* ---------- Body: two regions ---------- */
+  .board {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: var(--space-6);
+    align-items: start;
+  }
+  @media (max-width: 720px) {
+    .board { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Hall Call rail ---------- */
+  .rail {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-card);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .rail-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: var(--row-height);
+    padding: 0 var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color 150ms;
+  }
+  .rail-row:last-child { border-bottom: none; }
+  .rail-row:hover { background: var(--color-background); }
+  .rail-row__label {
+    flex: 1;
+    font-variant-numeric: tabular-nums;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--color-foreground);
+  }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px; height: 34px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-card);
+    color: var(--color-foreground);
+    cursor: pointer;
+    transition: border-color 150ms, background-color 150ms, color 150ms, transform 100ms;
+  }
+  .icon-btn:hover { border-color: var(--color-primary); }
+  .icon-btn:active { transform: scale(0.94); }
+  .icon-btn:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+  .icon-btn--pending {
+    background: var(--color-pending);
+    border-color: var(--color-pending);
+    color: var(--color-on-pending);
+  }
+  .icon-btn--spacer { visibility: hidden; pointer-events: none; }
+
+  /* ---------- Shaft View ---------- */
+  /* All 3 columns stay exactly equal width at all times, doors open or not
+     (per user correction — column growth on open was rejected). Each column
+     gets a min-width matching what the 10-button floor-cell--panel row
+     actually needs (10 * 28px buttons + 9 * 4px gaps + row padding, +buffer)
+     so on a normal-width window it fits with no scrolling at all — the
+     page's own max-width was widened to make room (see .page). If the
+     window is ever narrower than that, .shafts scrolls horizontally as a
+     contained fallback (not the whole page), and each row's own overflow-x
+     still works too. */
+  .shafts {
+    display: flex;
+    gap: var(--space-5);
+    overflow-x: auto;
+  }
+  @media (max-width: 560px) {
+    .shafts { flex-direction: column; overflow-x: visible; }
+    .car { min-width: 0 !important; }
+  }
+  .car {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 344px;
+  }
+  /* Shared by the rail's own label AND every car's header — a fixed height
+     (not content-derived) guarantees the Hall Call rows and every shaft's
+     floor-cell rows start at the exact same Y, so a floor lines up reading
+     straight across the dashboard (user-flagged: they didn't before, since
+     each car had its own id+chip header the rail lacked). */
+  .col-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 24px;
+    margin-bottom: var(--space-3);
+  }
+  .col-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  /* Hold/Close now live here (per user request), not in the floor-cell row.
+     Always laid out (visibility, not display) so col-head's height never
+     changes when a door opens/closes — same fixed-box principle used
+     everywhere else state toggles in this file. */
+  .col-head__doorctrls {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .col-head__doorctrls.is-active { visibility: visible; pointer-events: auto; }
+  .col-doorbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-card);
+    color: var(--color-foreground);
+    cursor: pointer;
+    transition: border-color 150ms, transform 100ms;
+  }
+  .col-doorbtn:hover { border-color: var(--color-primary); }
+  .col-doorbtn:active { transform: scale(0.9); }
+  .col-doorbtn svg { width: 11px; height: 11px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-muted);
+    color: var(--color-muted-foreground);
+    font-variant-numeric: tabular-nums;
+    transition: background-color 150ms, color 150ms;
+    white-space: nowrap;
+  }
+  .chip--open { background: rgba(21,128,61,0.14); color: #14532D; }
+  .chip--transit { background: rgba(30,64,175,0.10); color: var(--color-primary); }
+
+  .shaft {
+    position: relative;
+    border-radius: var(--radius-lg);
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .floor-cell {
+    height: var(--row-height);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    background: transparent;
+    transition: background-color 150ms;
+  }
+  .floor-cell:last-child { border-bottom: none; }
+  .floor-cell__num {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-muted-foreground);
+    opacity: 0.7;
+    transition: color 200ms;
+  }
+  /* Symbolic "climbing" trail: each floor the cabin passes lights up for a
+     beat as it goes by, reinforcing the sense of motion beyond just the
+     cabin box itself sliding. */
+  .floor-cell--pass {
+    background: rgba(30, 64, 175, 0.14);
+  }
+  .floor-cell--pass .floor-cell__num {
+    color: var(--color-primary);
+    opacity: 1;
+    font-weight: 700;
+  }
+  /* Persistent "car is parked here" marker — shown only while that car is
+     idle and closed. The cabin's own inset ring (.cabin--here, below) does
+     the actual work of reading as "here"; this row treatment is a secondary
+     supporting cue, so it stays as a plain tint/border/bold-text — no pill
+     or padding change on the number, since that was extra width the row
+     didn't have before and it pushed the whole column wider (user-flagged).
+     Fixed-width classes here so this state costs exactly the same box as
+     the resting state, never more. */
+  .floor-cell--here {
+    background: rgba(30, 64, 175, 0.2);
+    border-left: 5px solid var(--color-primary);
+    padding-left: calc(var(--space-3) - 5px);
+  }
+  .floor-cell--here .floor-cell__num {
+    color: var(--color-primary);
+    opacity: 1;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .cabin {
+    position: absolute;
+    left: var(--space-2);
+    right: var(--space-2);
+    height: calc(var(--row-height) - (var(--space-2) * 2));
+    margin-top: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 2px 6px rgba(30,64,175,0.25);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 15px;
+    transition: transform 240ms linear, background-color 150ms, box-shadow 150ms;
+    z-index: 2;
+  }
+  .cabin--open { background: var(--color-open); box-shadow: 0 2px 6px rgba(21,128,61,0.28); }
+  .cabin svg { width: 13px; height: 13px; }
+  .cabin--hidden { display: none; }
+  /* The cabin box sits on top of (and mostly covers) its own floor-cell, so
+     a "here" tint on the row alone barely shows through. This ring is what
+     actually reads as "the car is resting at this floor". Drawn INSET (not
+     an outer glow) so it can never bleed into the floor-cell above/below —
+     there's nothing clipping between individual rows, only around the whole
+     shaft, so an outer shadow would have spilled into the neighbors. */
+  .cabin--here {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.75), inset 0 0 10px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Floor cell in its "doors open here" state: NOT an overlay — it's the
+     same in-flow row, same --row-height, laid out horizontally with just
+     the 10 floor buttons (no label, no Hold/Close — those moved to
+     col-head per user request). Neither the row's height NOR its shaft
+     column's width change for this state, so when the 10 buttons don't
+     all fit a normal column width, this row scrolls horizontally within
+     itself — the visible scrollbar (not hidden) is the affordance that
+     there's more to the right; scroll-snap makes each button land cleanly. */
+  .floor-cell--panel {
+    background: var(--color-open);
+    color: var(--color-on-open);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+  .floor-cell--panel .floor-btn {
+    scroll-snap-align: start;
+  }
+  .floor-cell__floors { flex: 0 0 auto; display: flex; gap: 4px; }
+
+  .floor-btn {
+    width: 28px; height: 28px;
+    flex: 0 0 auto;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-card);
+    color: var(--color-foreground);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 150ms, transform 100ms;
+  }
+  .floor-btn:hover { border-color: var(--color-primary); }
+  .floor-btn:active { transform: scale(0.92); }
+  .floor-btn--current {
+    background: rgba(255,255,255,0.9);
+    border-color: transparent;
+    color: #14532D;
+    cursor: default;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-muted-foreground);
+    padding-top: var(--space-4);
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+
+    <header class="header">
+      <div class="header__identity">
+        <h1>Elevator Simulator</h1>
+        <p>Building &ldquo;Ascent Tower&rdquo; &middot; real-time control</p>
+      </div>
+      <div class="header__right">
+        <div class="stat-strip" role="group" aria-label="Building overview">
+          <div class="stat"><span class="stat__value">10</span><span class="stat__label">Floors</span></div>
+          <div class="stat"><span class="stat__value">3</span><span class="stat__label">Elevators</span></div>
+          <div class="stat"><span class="stat__value stat__value--pending" id="pendingCount">2</span><span class="stat__label">Pending</span></div>
+        </div>
+        <span class="badge" role="status">
+          <span class="badge__dot" aria-hidden="true"></span>
+          Connected
+        </span>
+      </div>
+    </header>
+
+    <div class="board">
+      <!-- Hall Call rail -->
+      <section aria-label="Hall calls">
+        <div class="col-head"><span class="col-title">Hall Calls</span></div>
+        <div class="rail" id="rail"><!-- rows injected by script --></div>
+      </section>
+
+      <!-- Shaft View -->
+      <section aria-label="Elevator shafts">
+        <div class="shafts" id="shafts"><!-- cars injected by script --></div>
+      </section>
+    </div>
+
+    <footer>Elevator Simulator &mdash; live control demo, synced across every open tab. This mock is clickable: try Hall Calls.</footer>
+  </div>
+
+<script>
+(function () {
+  var FLOORS = 10;
+  var ROW = 58;           // px — must match --row-height
+  var FLOOR_MS = 260;     // demo pacing only; real app ticks at 500ms server-side
+  var DWELL_MS = 4200;    // auto-close delay unless "Hold" is pressed
+  var CLOSE_MS = 260;
+
+  var UP_SVG = '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M205.66,125.66a8,8,0,0,1-11.32,0L136,67.31V216a8,8,0,0,1-16,0V67.31L61.66,125.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,125.66Z"/></svg>';
+  var DOWN_SVG = '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M205.66,141.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,188.69V40a8,8,0,0,1,16,0V188.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z"/></svg>';
+  var HOLD_SVG = '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M96,32V224a8,8,0,0,1-16,0V32a8,8,0,0,1,16,0Zm80,0V224a8,8,0,0,1-16,0V32a8,8,0,0,1,16,0Z"/></svg>';
+  var CLOSE_SVG = '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,40V216a8,8,0,0,1-16,0V40A8,8,0,0,1,216,40ZM56,32a8,8,0,0,0-8,8V216a8,8,0,0,0,16,0V40A8,8,0,0,0,56,32Z"/></svg>';
+
+  var cars = {
+    E1: { floor: 3, dir: 'IDLE', door: 'CLOSED', busy: false, dwellTimer: null },
+    E2: { floor: 9, dir: 'IDLE', door: 'CLOSED', busy: false, dwellTimer: null },
+    E3: { floor: 5, dir: 'IDLE', door: 'CLOSED', busy: false, dwellTimer: null }
+  };
+  var pending = {}; // key "floor-DIR" -> true
+
+  function rowFromTop(floor) { return FLOORS - floor; }
+  function q(sel) { return document.querySelector(sel); }
+  function qa(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+  function buildRail() {
+    var rail = q('#rail');
+    var rows = [];
+    for (var f = FLOORS; f >= 1; f--) {
+      var showUp = f < FLOORS;
+      var showDown = f > 1;
+      rows.push(
+        '<div class="rail-row">' +
+          '<span class="rail-row__label">Floor ' + f + '</span>' +
+          (showUp
+            ? '<button type="button" class="icon-btn" data-floor="' + f + '" data-dir="UP" aria-label="Hall call up floor ' + f + '">' + UP_SVG + '</button>'
+            : '<span class="icon-btn icon-btn--spacer" aria-hidden="true"></span>') +
+          (showDown
+            ? '<button type="button" class="icon-btn" data-floor="' + f + '" data-dir="DOWN" aria-label="Hall call down floor ' + f + '">' + DOWN_SVG + '</button>'
+            : '<span class="icon-btn icon-btn--spacer" aria-hidden="true"></span>') +
+        '</div>'
+      );
+    }
+    rail.innerHTML = rows.join('');
+    qa('.icon-btn[data-floor]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        hallCall(Number(btn.dataset.floor), btn.dataset.dir);
+      });
+    });
+  }
+
+  function buildShafts() {
+    var wrap = q('#shafts');
+    var html = '';
+    Object.keys(cars).forEach(function (id) {
+      var car = cars[id];
+      var cells = '';
+      for (var f = FLOORS; f >= 1; f--) {
+        cells += '<div class="floor-cell" data-car="' + id + '" data-floor="' + f + '"><span class="floor-cell__num">' + f + '</span></div>';
+      }
+      html +=
+        '<div class="car" data-car="' + id + '">' +
+          '<div class="col-head">' +
+            '<span class="col-title">' + id + '</span>' +
+            '<span class="chip" data-car="' + id + '">Idle &middot; Fl ' + car.floor + '</span>' +
+            '<div class="col-head__doorctrls" data-car="' + id + '">' +
+              '<button type="button" class="col-doorbtn" data-car="' + id + '" data-action="hold" aria-label="Hold doors">' + HOLD_SVG + '</button>' +
+              '<button type="button" class="col-doorbtn" data-car="' + id + '" data-action="close" aria-label="Close doors">' + CLOSE_SVG + '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="shaft" data-car="' + id + '" style="height:' + (FLOORS * ROW) + 'px">' +
+            cells +
+            '<div class="cabin" data-car="' + id + '">' + car.floor + '</div>' +
+          '</div>' +
+        '</div>';
+    });
+    wrap.innerHTML = html;
+
+    qa('.col-doorbtn[data-action="hold"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.dataset.car;
+        var car = cars[id];
+        if (car.door !== 'OPEN') return;
+        clearTimeout(car.dwellTimer);
+        car.dwellTimer = setTimeout(function () { closeDoors(id); }, DWELL_MS);
+      });
+    });
+    qa('.col-doorbtn[data-action="close"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.dataset.car;
+        if (cars[id].door === 'OPEN') closeDoors(id);
+      });
+    });
+  }
+
+  function paintCabin(id) {
+    var car = cars[id];
+    var el = q('.cabin[data-car="' + id + '"]');
+    el.style.transform = 'translateY(' + (rowFromTop(car.floor) * ROW) + 'px)';
+    el.classList.toggle('cabin--open', car.door === 'OPEN');
+    if (car.door === 'OPEN' || car.dir === 'IDLE') {
+      el.innerHTML = String(car.floor);
+    } else {
+      el.innerHTML = (car.dir === 'UP' ? UP_SVG : DOWN_SVG) + car.floor;
+    }
+  }
+
+  function paintChip(id) {
+    var car = cars[id];
+    var el = q('.chip[data-car="' + id + '"]');
+    el.classList.remove('chip--open', 'chip--transit');
+    if (car.door === 'OPEN') { el.textContent = 'Doors Open · Fl ' + car.floor; el.classList.add('chip--open'); }
+    else if (car.dir === 'UP') { el.textContent = '↑ Fl ' + car.floor; el.classList.add('chip--transit'); }
+    else if (car.dir === 'DOWN') { el.textContent = '↓ Fl ' + car.floor; el.classList.add('chip--transit'); }
+    else { el.textContent = 'Idle · Fl ' + car.floor; }
+  }
+
+  function paintPending() {
+    var count = 0;
+    qa('.icon-btn[data-floor]').forEach(function (btn) {
+      var key = btn.dataset.floor + '-' + btn.dataset.dir;
+      var isPending = !!pending[key];
+      btn.classList.toggle('icon-btn--pending', isPending);
+      if (isPending) count++;
+    });
+    q('#pendingCount').textContent = String(count);
+  }
+
+  function clearPendingAt(floor) {
+    delete pending[floor + '-UP'];
+    delete pending[floor + '-DOWN'];
+    paintPending();
+  }
+
+  function clearPosition(id) {
+    qa('.floor-cell--here[data-car="' + id + '"]').forEach(function (c) {
+      c.classList.remove('floor-cell--here');
+    });
+    q('.cabin[data-car="' + id + '"]').classList.remove('cabin--here');
+  }
+
+  // Marks the floor-cell the car is currently parked at, ONLY while it is
+  // truly at rest (idle, doors closed) — the panel and pass-flash states
+  // already carry their own strong color, so this stays out of their way.
+  // The ring on the cabin itself is what actually shows (see .cabin--here);
+  // the row tint is a secondary supporting cue.
+  function paintPosition(id) {
+    clearPosition(id);
+    var car = cars[id];
+    if (car.dir !== 'IDLE' || car.door !== 'CLOSED') return;
+    var cell = q('.floor-cell[data-car="' + id + '"][data-floor="' + car.floor + '"]');
+    if (cell) cell.classList.add('floor-cell--here');
+    q('.cabin[data-car="' + id + '"]').classList.add('cabin--here');
+  }
+
+  // Turns car `id`'s OWN floor-cell (at its current floor — same in-flow
+  // element, same --row-height, never taller) into the Hold/Close + 1-10
+  // control row, and widens that car's whole shaft column so everything
+  // fits on one line instead of growing the row's height.
+  function showPanel(id) {
+    var car = cars[id];
+    var cell = q('.floor-cell[data-car="' + id + '"][data-floor="' + car.floor + '"]');
+    cell.classList.remove('floor-cell--here');
+    cell.classList.add('floor-cell--panel');
+
+    cell.innerHTML = '<div class="floor-cell__floors"></div>';
+
+    var list = cell.querySelector('.floor-cell__floors');
+    for (var f = FLOORS; f >= 1; f--) {
+      (function (target) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        var isCurrent = target === car.floor;
+        b.className = 'floor-btn' + (isCurrent ? ' floor-btn--current' : '');
+        b.setAttribute('aria-label', 'Car call floor ' + target);
+        b.textContent = String(target);
+        if (isCurrent) {
+          b.disabled = true;
+        } else {
+          b.addEventListener('click', function () { sendTo(id, target); });
+        }
+        list.appendChild(b);
+      })(f);
+    }
+
+    q('.cabin[data-car="' + id + '"]').classList.add('cabin--hidden');
+  }
+
+  function hidePanel(id) {
+    var car = cars[id];
+    var cell = q('.floor-cell--panel[data-car="' + id + '"]');
+    if (cell) {
+      cell.classList.remove('floor-cell--panel');
+      cell.innerHTML = '<span class="floor-cell__num">' + cell.dataset.floor + '</span>';
+    }
+    q('.cabin[data-car="' + id + '"]').classList.remove('cabin--hidden');
+  }
+
+  function paintDoorCtrls(id) {
+    q('.col-head__doorctrls[data-car="' + id + '"]').classList.toggle('is-active', cars[id].door === 'OPEN');
+  }
+
+  function openDoors(id) {
+    var car = cars[id];
+    car.dir = 'IDLE';
+    car.door = 'OPEN';
+    paintCabin(id); paintChip(id); paintDoorCtrls(id);
+    clearPendingAt(car.floor);
+    showPanel(id);
+    car.dwellTimer = setTimeout(function () { closeDoors(id); }, DWELL_MS);
+  }
+
+  function closeDoors(id) {
+    var car = cars[id];
+    clearTimeout(car.dwellTimer);
+    car.door = 'CLOSED';
+    hidePanel(id);
+    paintCabin(id); paintChip(id); paintPosition(id); paintDoorCtrls(id);
+  }
+
+  // Symbolic climb: as the cabin steps past each floor, that floor-cell
+  // briefly lights up (blue, matching the in-transit cabin color) then fades
+  // — a trail of light climbing/descending the shaft, not just the cabin box
+  // itself moving.
+  function flashPass(id, floor) {
+    var cell = q('.floor-cell[data-car="' + id + '"][data-floor="' + floor + '"]');
+    if (!cell || cell.classList.contains('floor-cell--panel')) return;
+    cell.classList.add('floor-cell--pass');
+    setTimeout(function () { cell.classList.remove('floor-cell--pass'); }, FLOOR_MS + 160);
+  }
+
+  function travelTo(id, target) {
+    var car = cars[id];
+    car.busy = true;
+    clearPosition(id);
+    (function step() {
+      if (car.floor === target) { car.busy = false; openDoors(id); return; }
+      car.dir = target > car.floor ? 'UP' : 'DOWN';
+      car.floor += car.dir === 'UP' ? 1 : -1;
+      paintCabin(id); paintChip(id);
+      flashPass(id, car.floor);
+      setTimeout(step, FLOOR_MS);
+    })();
+  }
+
+  function sendTo(id, floor) {
+    var car = cars[id];
+    if (car.floor === floor) return;
+    clearTimeout(car.dwellTimer);
+    hidePanel(id);
+    car.door = 'CLOSING';
+    paintCabin(id);
+    setTimeout(function () {
+      car.door = 'CLOSED';
+      paintCabin(id);
+      travelTo(id, floor);
+    }, CLOSE_MS);
+  }
+
+  function closeThenTravel(id, floor) {
+    var car = cars[id];
+    clearTimeout(car.dwellTimer);
+    hidePanel(id);
+    car.door = 'CLOSING';
+    paintCabin(id);
+    setTimeout(function () {
+      car.door = 'CLOSED';
+      paintCabin(id);
+      travelTo(id, floor);
+    }, CLOSE_MS);
+  }
+
+  function pickCar(floor) {
+    var ids = Object.keys(cars);
+    var free = ids.filter(function (id) { return !cars[id].busy && cars[id].door !== 'OPEN'; });
+    var pool = free.length ? free : ids;
+    pool.sort(function (a, b) {
+      return Math.abs(cars[a].floor - floor) - Math.abs(cars[b].floor - floor);
+    });
+    return pool[0];
+  }
+
+  function hallCall(floor, dir) {
+    pending[floor + '-' + dir] = true;
+    paintPending();
+    var id = pickCar(floor);
+    var car = cars[id];
+    if (car.door === 'OPEN' && car.floor === floor) { clearPendingAt(floor); return; }
+    if (car.busy) return; // demo simplification: an already-moving car isn't re-routed mid-flight
+    if (car.door === 'OPEN') closeThenTravel(id, floor);
+    else travelTo(id, floor);
+  }
+
+  buildRail();
+  buildShafts();
+  Object.keys(cars).forEach(function (id) { paintCabin(id); paintChip(id); paintPosition(id); paintDoorCtrls(id); });
+  pending['2-UP'] = true;
+  pending['8-DOWN'] = true;
+  paintPending();
+})();
+</script>
+</body>
+</html>

@@ -1,59 +1,150 @@
 .elevator-car {
   display: flex;
   flex-direction: column;
-  min-width: 96px;
+  flex: 1 1 0;
+  min-width: 344px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 150ms,
+    color 150ms;
+  white-space: nowrap;
+}
+
+.chip--open {
+  background-color: rgba(21, 128, 61, 0.14);
+  color: #14532d;
+}
+
+.chip--transit {
+  background-color: rgba(30, 64, 175, 0.1);
+  color: var(--color-primary);
 }
 
 .elevator-car__shaft {
   position: relative;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
 .elevator-car__floor-cell {
   height: var(--row-height);
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  background-color: transparent;
+  transition: background-color 150ms;
 }
 
 .elevator-car__floor-cell:last-child {
   border-bottom: none;
 }
 
+.elevator-car__floor-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+  opacity: 0.7;
+  transition: color 200ms;
+}
+
+/* Climbing trail: the floor-cell a car just stepped onto briefly lights up,
+   synced to the cabin's own translateY tween (see ElevatorCar.tsx). */
+.elevator-car__floor-cell--pass {
+  background-color: rgba(30, 64, 175, 0.14);
+}
+
+.elevator-car__floor-cell--pass .elevator-car__floor-num {
+  color: var(--color-primary);
+  opacity: 1;
+  font-weight: 700;
+}
+
+/* Resting-position marker — a secondary supporting cue only; the cabin's
+   own inset ring (.elevator-car__cabin--here) is what actually reads as
+   "the car is here". Plain tint/border/bold-text, no padding or min-width
+   change on the number itself, so this state never widens the column. */
+.elevator-car__floor-cell--here {
+  background-color: rgba(30, 64, 175, 0.2);
+  border-left: 5px solid var(--color-primary);
+  padding-left: calc(var(--space-3) - 5px);
+}
+
+.elevator-car__floor-cell--here .elevator-car__floor-num {
+  color: var(--color-primary);
+  opacity: 1;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Doors-open state: the cabin box is hidden and this exact floor-cell —
+   same in-flow element, same --row-height, never taller — becomes the
+   DestinationPanel row instead. Neither this row's height nor its shaft
+   column's width change for this state; a local overflow-x is a safety net
+   only (columns are sized to fit the 10-button row without scrolling on a
+   normal window). */
+.elevator-car__floor-cell--panel {
+  background-color: var(--color-open);
+  color: var(--color-on-open);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
 .elevator-car__cabin {
   position: absolute;
-  top: 0;
-  left: var(--space-1);
-  right: var(--space-1);
-  height: calc(var(--row-height) - (var(--space-1) * 2));
-  margin-top: var(--space-1);
+  left: var(--space-2);
+  right: var(--space-2);
+  height: calc(var(--row-height) - (var(--space-2) * 2));
+  margin-top: var(--space-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
-  border-radius: var(--radius-sm);
+  gap: 6px;
+  border-radius: var(--radius-md);
   background-color: var(--color-primary);
   color: var(--color-on-primary);
+  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
   transition:
     transform 480ms linear,
-    background-color 150ms;
+    background-color 150ms,
+    box-shadow 150ms;
+  z-index: 2;
 }
 
-.elevator-car__cabin--open {
-  background-color: var(--color-open);
-  color: var(--color-on-open);
+/* Drawn INSET (not an outer glow) so it can never bleed into the floor-cell
+   above/below — nothing clips between individual rows, only around the
+   whole shaft, so an outer shadow would spill into a neighboring floor. */
+.elevator-car__cabin--here {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.75),
+    inset 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .elevator-car__floor-digit {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: 15px;
-}
-
-.elevator-car__docked-panel {
-  margin-top: var(--space-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-card);
 }

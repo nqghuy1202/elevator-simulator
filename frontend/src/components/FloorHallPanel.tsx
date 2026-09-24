@@ -27,33 +27,33 @@ export function FloorHallPanel({ floor, floors, activeHallCalls, onHallCall }: F
   const showDown = floor > 1;
 
   return (
-    <div className="floor-hall-panel">
-      <span className="floor-hall-panel__label">Floor {floor}</span>
+    <div className="rail-row">
+      <span className="rail-row__label">Floor {floor}</span>
       {showUp ? (
         <button
           type="button"
           aria-label={`Hall call up floor ${floor}`}
-          className={`floor-hall-panel__button${isActive('UP') ? ' floor-hall-panel__button--pending' : ''}`}
+          className={`icon-btn${isActive('UP') ? ' icon-btn--pending' : ''}`}
           onClick={() => onHallCall(floor, 'UP')}
         >
           <ArrowUp size={16} weight="bold" aria-hidden="true" />
           {isActive('UP') && <span className="sr-only">pending</span>}
         </button>
       ) : (
-        <span className="floor-hall-panel__spacer" aria-hidden="true" />
+        <span className="icon-btn icon-btn--spacer" aria-hidden="true" />
       )}
       {showDown ? (
         <button
           type="button"
           aria-label={`Hall call down floor ${floor}`}
-          className={`floor-hall-panel__button${isActive('DOWN') ? ' floor-hall-panel__button--pending' : ''}`}
+          className={`icon-btn${isActive('DOWN') ? ' icon-btn--pending' : ''}`}
           onClick={() => onHallCall(floor, 'DOWN')}
         >
           <ArrowDown size={16} weight="bold" aria-hidden="true" />
           {isActive('DOWN') && <span className="sr-only">pending</span>}
         </button>
       ) : (
-        <span className="floor-hall-panel__spacer" aria-hidden="true" />
+        <span className="icon-btn icon-btn--spacer" aria-hidden="true" />
       )}
     </div>
   );

@@ -76,7 +76,7 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
     expect(screen.queryByLabelText(/Car call floor/)).not.toBeInTheDocument();
   });
 
-  it('renders the DestinationPanel when doorState is OPEN', () => {
+  it('renders the DestinationPanel when doorState is OPEN, with the current floor lit/disabled not omitted', () => {
     render(
       <ElevatorCar
         elevator={makeElevator({ doorState: 'OPEN', currentFloor: 5 })}
@@ -88,7 +88,8 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
     );
 
     expect(screen.getByLabelText('Car call floor 8')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Car call floor 5')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Car call floor 5')).toBeInTheDocument();
+    expect(screen.getByLabelText('Car call floor 5')).toBeDisabled();
   });
 
   it('panel disappears purely by re-rendering off doorState, with no memory of "was it open"', () => {
@@ -149,7 +150,7 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
 });
 
 describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (Story 2.5)', () => {
-  it('renders no DoorControls buttons when doorState is CLOSED', () => {
+  it('renders DoorControls disabled when doorState is CLOSED (always mounted in col-head, never display-toggled)', () => {
     render(
       <ElevatorCar
         elevator={makeElevator({ doorState: 'CLOSED' })}
@@ -160,11 +161,11 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
       />,
     );
 
-    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Close doors')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).toBeDisabled();
+    expect(screen.getByLabelText('Close doors')).toBeDisabled();
   });
 
-  it('renders no DoorControls buttons when doorState is OPENING', () => {
+  it('renders DoorControls disabled when doorState is OPENING', () => {
     render(
       <ElevatorCar
         elevator={makeElevator({ doorState: 'OPENING' })}
@@ -175,11 +176,11 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
       />,
     );
 
-    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Close doors')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).toBeDisabled();
+    expect(screen.getByLabelText('Close doors')).toBeDisabled();
   });
 
-  it('renders no DoorControls buttons when doorState is CLOSING', () => {
+  it('renders DoorControls disabled when doorState is CLOSING', () => {
     render(
       <ElevatorCar
         elevator={makeElevator({ doorState: 'CLOSING' })}
@@ -190,11 +191,11 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
       />,
     );
 
-    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Close doors')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).toBeDisabled();
+    expect(screen.getByLabelText('Close doors')).toBeDisabled();
   });
 
-  it('renders the DoorControls when doorState is OPEN', () => {
+  it('renders the DoorControls enabled when doorState is OPEN', () => {
     render(
       <ElevatorCar
         elevator={makeElevator({ doorState: 'OPEN' })}
@@ -206,10 +207,11 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
     );
 
     expect(screen.getByLabelText('Hold doors')).toBeInTheDocument();
-    expect(screen.getByLabelText('Close doors')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).not.toBeDisabled();
+    expect(screen.getByLabelText('Close doors')).not.toBeDisabled();
   });
 
-  it('controls disappear purely by re-rendering off doorState, with no memory of "was it open"', () => {
+  it('controls become disabled purely by re-rendering off doorState, with no memory of "was it open"', () => {
     const { rerender } = render(
       <ElevatorCar
         elevator={makeElevator({ doorState: 'OPEN' })}
@@ -219,7 +221,7 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
         onDoorClose={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Hold doors')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).not.toBeDisabled();
 
     rerender(
       <ElevatorCar
@@ -231,7 +233,7 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
       />,
     );
 
-    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).toBeDisabled();
   });
 
   it('wires onDoorHold and onDoorClose through to DoorControls with the elevator id', () => {
@@ -254,7 +256,7 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
     expect(onDoorClose).toHaveBeenCalledWith('E1');
   });
 
-  it('independent per elevator: only the OPEN elevator shows DoorControls', () => {
+  it('independent per elevator: only the OPEN elevator has enabled DoorControls', () => {
     const { rerender } = render(
       <ElevatorCar
         elevator={makeElevator({ id: 'E1', doorState: 'OPEN' })}
@@ -264,7 +266,7 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
         onDoorClose={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Hold doors')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).not.toBeDisabled();
 
     rerender(
       <ElevatorCar
@@ -275,6 +277,6 @@ describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (St
         onDoorClose={vi.fn()}
       />,
     );
-    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Hold doors')).toBeDisabled();
   });
 });

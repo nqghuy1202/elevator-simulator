@@ -18,7 +18,7 @@ colors:
   ring: '#1E40AF'
   pending: '#D97706'
   on-pending: '#1F1300'
-  open: '#16A34A'
+  open: '#15803D'
   on-open: '#FFFFFF'
   destructive: '#DC2626'
   on-destructive: '#FFFFFF'
@@ -88,6 +88,26 @@ components:
     connecting-fill: '{colors.pending}'
     disconnected-fill: '{colors.destructive}'
     radius: '{rounded.full}'
+  status-chip:
+    idle-fill: '{colors.muted}'
+    idle-foreground: '{colors.muted-foreground}'
+    transit-foreground: '{colors.primary}'
+    open-foreground: '#14532D'
+    radius: '{rounded.full}'
+  destination-panel-button:
+    idle-fill: '{colors.card}'
+    idle-border: '{colors.border}'
+    idle-foreground: '{colors.foreground}'
+    current-fill: 'rgba(255,255,255,0.9)'
+    current-foreground: '#14532D'
+    radius: '{rounded.sm}'
+  stat-strip:
+    fill: '{colors.card}'
+    border: '{colors.border}'
+    value-foreground: '{colors.primary}'
+    value-pending-foreground: '{colors.pending}'
+    label-foreground: '{colors.muted-foreground}'
+    radius: '{rounded.lg}'
 ---
 
 ## Brand & Style
@@ -119,24 +139,29 @@ Body text sits at 15px, slightly below the usual 16px default, because this is a
 
 ## Layout & Spacing
 
-Dense dashboard scale: base unit `{spacing.2}` (8px), running 4/8/12/16/20/24/32/48px. Three-column layout at the top level: **Shaft View** (dominant, center — the three vertical elevator wells side by side) flanked conceptually by per-shaft **Destination Panel** and **Door Controls**, which appear docked to their cabin only while that cabin's doors are open (per Snapshot `doorState`, no separate visibility state).
+Dense dashboard scale: base unit `{spacing.2}` (8px), running 4/8/12/16/20/24/32/48px. The page is a centered column (max-width 1420px) with a header band (title + a "Building" stat strip — floors/elevators/pending — + connection badge) above a two-region board: a fixed-width Hall Call rail (240px) and the **Shaft View** (the elevator wells side by side, flexed to share remaining width). Each shaft column's own header (car id, status chip, Door Controls) and the rail's header share one `col-head` component at a fixed height, so a floor's rail row and its cell in every shaft line up at the same Y by construction, not by matching font metrics.
 
-Floor rows inside each shaft are equal height, `{spacing.12}` (48px) tall, stacked floor 10 (top) to floor 1 (bottom) — the shaft is a literal vertical mirror of the building. Hall-call controls for a floor sit in a slim rail to the left of the three shafts, one row per floor, aligned to the same 48px row height so a floor's hall-call row and its position across all three shafts line up on a single horizontal line.
+Floor rows inside each shaft are equal height, 58px tall (bumped from the original `{spacing.12}`/48px so the resting-position ring reads clearly), stacked floor 10 (top) to floor 1 (bottom) — the shaft is a literal vertical mirror of the building. Hall-call controls for a floor sit in the rail, one row per floor, aligned to the same 58px row height.
+
+Destination Panel and Door Controls are **not** a separate docked/overlay block. The instant a cabin's doors open, its floor-cell — same in-flow element, same row height, never taller — becomes the Destination Panel's row of floor buttons in place of the cabin digit; Door Controls live in that shaft's `col-head`, always laid out there and toggled via `disabled`/`visibility` (never `display`), so no element's box ever grows, shrinks, or reflows a sibling when a door opens or closes. Shaft columns stay exactly equal width at all times (min-width 344px, sized to fit the 10-button floor-cell row without scrolling on a normal window); a local `overflow-x` on that one row is a safety net, not the expected path.
 
 ## Elevation & Depth
 
-Nearly flat. Cards (shaft panel, destination panel, door controls) get a single subtle shadow (`0 1px 2px rgba(30, 64, 175, 0.06)`, blue-tinted at very low opacity — consistent with the border color) only to separate them from the page background, not to imply a z-axis hierarchy. No hover-lift, no heavy drop shadows — this is a panel, not a card-grid marketing page.
+Nearly flat. Cards (Hall Call rail, shaft panel, stat strip) get a single shadow weight (`0 4px 12px rgba(30, 64, 175, 0.06), 0 1px 2px rgba(30, 64, 175, 0.05)`, blue-tinted at very low opacity — consistent with the border color) only to separate them from the page background, not to imply a z-axis hierarchy. No hover-lift, no heavy drop shadows — this is a panel, not a card-grid marketing page.
 
 ## Shapes
 
-`{rounded.sm}` (6px) on interactive controls (hall-call buttons, door controls, destination-panel floor buttons) — crisp enough to read as "button," soft enough to not feel industrial. `{rounded.md}` (8px) on containers (shaft panel, destination panel). `{rounded.full}` exclusively on the connection-status badge and the pending-indicator dot — pill/dot shapes are reserved for status, never used on actionable buttons, so shape itself signals "this is state, not a control."
+`{rounded.sm}` (6px) on interactive controls (hall-call buttons, door controls, destination-panel floor buttons) — crisp enough to read as "button," soft enough to not feel industrial. `{rounded.lg}` (12px, bumped from `{rounded.md}`) on containers (Hall Call rail, shaft panel, stat strip). `{rounded.full}` exclusively on the connection-status badge, the status chip, and the pending-indicator dot — pill/dot shapes are reserved for status, never used on actionable buttons, so shape itself signals "this is state, not a control."
 
 ## Components
 
-- **Elevator cabin** — the animated unit inside a shaft column. `{colors.primary}` fill while doors are closed/transit, switches to `{colors.open}` fill the instant `doorState === 'OPEN'`. White (`on-primary`/`on-open`) floor-digit label centered inside. Position is driven by a CSS `transform: translateY()` transition (see EXPERIENCE.md `Component Patterns` for the behavioral rule) — the color and shape are static, only position and fill-color transition.
+- **Elevator cabin** — the animated unit inside a shaft column. `{colors.primary}` fill while doors are closed/transit, switches to `{colors.open}` fill the instant `doorState === 'OPEN'`. White (`on-primary`/`on-open`) floor-digit label centered inside. Position is driven by a CSS `transform: translateY()` transition (see EXPERIENCE.md `Component Patterns`). While idle with doors closed, the cabin also carries an inset white ring (never an outer glow, so it can't bleed into a neighboring floor-cell row) marking it as the car's resting position; the same floor-cell also carries a secondary tint/left-accent cue. The instant doors open, the cabin is hidden and its floor-cell becomes the Destination Panel row instead (see Layout & Spacing).
 - **Hall call button** — one per floor per available direction (per FR-1, no ↑ at floor 10, no ↓ at floor 1). Idle: `card` fill, `border` outline, `foreground` arrow icon. Pending: fill flips to `{colors.pending}`, icon becomes `on-pending`. The fill-flip (not an added badge/dot) is the entire pending signal — keeps the dense hall-call rail legible without extra elements.
-- **Door control button (Hold / Close)** — `card` fill, `border` outline, `foreground` icon; identical visual weight to an idle hall-call button (both are "a control you can press"), rendered only inside the open cabin's docked panel.
+- **Status chip** — one per shaft column header, next to the car id. Text + fill reflect the car's state: neutral `muted` fill "Idle · Fl N", tinted-primary fill "↑/↓ Fl N" while moving, tinted-`open` fill "Doors Open · Fl N" while doors are open.
+- **Door control button (Hold / Close)** — icon-only, `card` fill, `border` outline, `foreground` icon; identical visual weight to an idle hall-call button. Lives in the shaft column's `col-head`, always rendered there, only interactive while that car's doors are open.
+- **Destination panel button** — one per floor `1..floors`, inline inside the open cabin's own floor-cell (not a separate panel). The car's own current floor renders lit/disabled rather than omitted, matching a real elevator car panel's convention of always showing every floor.
 - **Connection badge** — small pill, top-right of the page. Fill color *is* the state: `{colors.open}` connected, `{colors.pending}` connecting, `{colors.destructive}` disconnected. No icon needed — color + one-word `label` text ("Connected" / "Connecting…" / "Disconnected") is sufficient at this size.
+- **Stat strip** — small header group (Floors / Elevators / Pending) giving the header glanceable building-level context; `card` fill, same shadow weight as other containers. The Pending value uses `{colors.pending}`; the others use `{colors.primary}`.
 
 ## Do's and Don'ts
 

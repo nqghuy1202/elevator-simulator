@@ -17,14 +17,14 @@ Primary audience per the PRD: an interview reviewer running a live demo, seconda
 
 ## Information Architecture
 
-One surface — there is no navigation, no routing. The page is a single dashboard with three regions:
+One surface — there is no navigation, no routing. The page is a centered column with a header band above a two-region board:
 
 | Region | Contains | Notes |
 |---|---|---|
-| Header | App title, connection badge | Always visible, `{spacing.4}` padding |
-| Hall Call rail | One row per floor (10→1, top to bottom), ↑/↓ buttons + pending fill-state | Left column, fixed width |
-| Shaft View | Three vertical shaft columns (one per elevator), cabins positioned by `currentFloor` | Center, dominant region |
-| Docked panel | Destination Panel + Door Controls for a cabin | Appears attached to that cabin's column only while `doorState === 'OPEN'`; absent otherwise — no placeholder/empty state, the column is just narrower |
+| Header | App title, Building stat strip (floors/elevators/pending), connection badge | Always visible |
+| Hall Call rail | One row per floor (10→1, top to bottom), ↑/↓ buttons + pending fill-state | Left column, fixed width (240px), shares one `col-head` header style with each shaft column so rows line up |
+| Shaft View | Three vertical shaft columns (one per elevator), cabins positioned by `currentFloor`; each column's own header carries the car id, a status chip, and Door Controls | Center, dominant region, equal-width columns at all times |
+| Destination Panel | The open cabin's own floor-cell, in place of the cabin digit | Not a separate docked/overlay block — only that one floor-cell (same row height, same column width) turns into the 1..floors button row while `doorState === 'OPEN'`; absent otherwise, cabin digit shows normally |
 
 IA closure: every stated need (place a hall call, watch elevators move, call a car destination, hold/close a door, see connection health) has exactly one region that delivers it, and the Key Flow below visits all four regions in one continuous read.
 
@@ -47,9 +47,9 @@ Behavioral only — visual specs live in `DESIGN.md.Components`.
 |---|---|---|
 | Connection badge | New — header | Reflects `uiSlice.connectionStatus` 1:1 (`connecting`/`connected`/`disconnected`). No retry button — the socket layer already auto-reconnects; the badge is informational only. |
 | Hall call button | `FloorHallPanel` (restyled) | One per available direction per floor (no ↑ at floor 10, no ↓ at floor 1, per FR-1). Click emits `hallCall`; idempotent — repeat clicks while already pending are visually inert (fill doesn't "flash" or duplicate). Fill state driven solely by `snapshot.activeHallCalls` (FR-2) — no local pending-click optimism, since the tick is ~500ms and optimistic state would need reconciling against the next Snapshot for no real benefit. |
-| Elevator cabin | `ElevatorCar` (restyled + repositioned into Shaft View) | Vertical position = `currentFloor` mapped to the shaft's row grid, applied via CSS `transform: translateY()` with a `transition: transform 480ms linear` (slightly under the 500ms tick so a new position is always fully settled before the next tick can move it again) — a pure CSS approach, not GSAP, so it survives React's per-tick re-render without needing imperative animation cleanup. Fill color swaps `primary`→`open` immediately (no transition) the tick `doorState` becomes `OPEN` — the color change is a state cut, not a tween, so open/closed is never visually ambiguous mid-fade. |
-| Destination Panel | `DestinationPanel` (restyled, now docked to its cabin) | Visible only while that cabin's doors are open (existing rule, unchanged). Floor buttons for every floor except `currentFloor`. Multiple selections in one open-door visit all queue (FR-3) — clicking a second floor doesn't replace the first. |
-| Door Controls | `DoorControls` (restyled, docked alongside Destination Panel) | Hold and Close, visible only while doors are open (FR-4/FR-5, unchanged). Both are momentary actions — no pressed/toggled visual state to track, since the server alone owns the dwell timer. |
+| Elevator cabin | `ElevatorCar` (restyled + repositioned into Shaft View) | Vertical position = `currentFloor` mapped to the shaft's row grid, applied via CSS `transform: translateY()` with a `transition: transform 480ms linear` (slightly under the 500ms tick so a new position is always fully settled before the next tick can move it again) — a pure CSS approach, not GSAP, so it survives React's per-tick re-render without needing imperative animation cleanup. Fill color swaps `primary`→`open` immediately (no transition) the tick `doorState` becomes `OPEN` — the color change is a state cut, not a tween, so open/closed is never visually ambiguous mid-fade. While idle with doors closed the cabin also gets an inset resting-position ring (paired with a secondary tint on its floor-cell). While a car is genuinely in transit, the floor-cell it just stepped onto briefly flashes (a purely visual "climbing trail" derived straight from `currentFloor` changing — see Interaction Primitives note below) — no business state, just an echo of the tween. |
+| Destination Panel | `DestinationPanel` (restyled, now inline in the open cabin's own floor-cell, not a separate docked block) | Visible only while that cabin's doors are open (existing rule, unchanged). Floor buttons for every floor `1..floors`, current floor included — it renders lit/disabled rather than being omitted, matching a real elevator car panel. Multiple selections in one open-door visit all queue (FR-3) — clicking a second floor doesn't replace the first. |
+| Door Controls | `DoorControls` (restyled, moved into the shaft column's `col-head`) | Hold and Close, always mounted in the column header — never conditionally rendered — and toggled via `disabled` + CSS `visibility` (not `display`), so the header's fixed height never changes when a door opens or closes. Interactive only while doors are open (FR-4/FR-5, unchanged); both are momentary actions — no pressed/toggled visual state to track, since the server alone owns the dwell timer. |
 
 ## State Patterns
 
@@ -60,8 +60,8 @@ Behavioral only — visual specs live in `DESIGN.md.Components`.
 | Connected | Header | Connection badge: `open`-fill, "Connected" |
 | Disconnected (mid-session) | Header | Connection badge: `destructive`-fill, "Disconnected". Last-known Snapshot stays on screen (frozen, not cleared) — better to show slightly stale truth than blank the whole dashboard PRD-style (server restart wipes state; a hard clear would fight the eventual reconnect Snapshot anyway, since `connect` already resets client state per `useBuildingSocket.ts`). |
 | Hall call pending | Hall Call rail | That floor's directional button fill flips to `pending`; clears the instant an elevator opens doors there for that direction (FR-2), driven purely by `activeHallCalls` membership. |
-| Door open | Shaft View + Docked panel | Cabin fill flips to `open`; Destination Panel + Door Controls mount for that cabin. |
-| Door closed / in transit | Shaft View | Docked panel unmounts; cabin fill reverts to `primary`; cabin begins tweening toward its next `currentFloor`. |
+| Door open | Shaft View | Cabin hides; its floor-cell becomes the Destination Panel's floor-button row; that shaft's `col-head` Door Controls become interactive (they're already mounted, just enabled). |
+| Door closed / in transit | Shaft View | The floor-cell reverts to a plain floor number; Door Controls become disabled again (still mounted); cabin reappears at `primary` fill and begins tweening toward its next `currentFloor`. |
 
 ## Interaction Primitives
 

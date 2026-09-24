@@ -16,7 +16,11 @@
   --color-ring: #1e40af;
   --color-pending: #d97706;
   --color-on-pending: #1f1300;
-  --color-open: #16a34a;
+  /* Darkened from the original #16A34A: white text on that shade only hit
+     ~3.3:1 contrast (badge, cabin fill, floor-cell panel all set on-open
+     text white) — below the 4.5:1 floor. #15803D is the same green hue,
+     deep enough to clear ~5:1 (ui-ux-pro-max color pass, 2026-09-24). */
+  --color-open: #15803d;
   --color-on-open: #ffffff;
   --color-destructive: #dc2626;
   --color-on-destructive: #ffffff;
@@ -24,11 +28,16 @@
   /* Typography */
   --font-family: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  /* Radius */
+  /* Radius — bumped md -> lg on containers (shaft panel, rail, stat-strip)
+     for the warmer redesign pass; sm/full unchanged. */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
+
+  /* Elevation — one shadow weight everywhere elevation is used (DESIGN.md),
+     bumped to a softer, longer falloff in the redesign pass. */
+  --shadow-card: 0 4px 12px rgba(30, 64, 175, 0.06), 0 1px 2px rgba(30, 64, 175, 0.05);
 
   /* Spacing */
   --space-1: 4px;
@@ -44,7 +53,7 @@
      ROW_HEIGHT_PX, the single source of truth shared with ElevatorCar's
      cabin-position math. This default only applies to anything rendered
      outside App (e.g. an isolated component test). */
-  --row-height: var(--space-12);
+  --row-height: 58px;
 
   color-scheme: light;
   font-family: var(--font-family);
@@ -65,6 +74,24 @@ body {
 button {
   font: inherit;
   color: inherit;
+}
+
+/* Shared by the Hall Call rail's own header AND every shaft column's
+   header — a fixed height (not content-derived) guarantees a floor's rail
+   row and its cell in every shaft column start at the exact same Y, rather
+   than relying on two different elements' font metrics to happen to match. */
+.col-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  margin-bottom: var(--space-3);
+}
+
+.col-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
 
 .sr-only {
