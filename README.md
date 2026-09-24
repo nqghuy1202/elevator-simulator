@@ -2,6 +2,8 @@
 
 A real-time, multi-elevator building simulator built as a Node.js/React take-home test. The backend is a server-authoritative simulation (3 elevators, 10 floors) implementing the industry-standard **SCAN/LOOK** dispatch rule; the frontend renders the live state over WebSocket for Hall Call, Car Call, and Door Hold/Close controls. Two browser tabs open at once never disagree — the client never computes elevator state itself, it only renders the server's latest snapshot.
 
+**Live demo:** [elevator.hlcompany.id.vn](https://elevator.hlcompany.id.vn)
+
 ## Highlights
 
 - **Correct SCAN/LOOK dispatch** — a moving elevator only stops for a Hall Call that shares its direction and lies ahead of it; unservable calls become Pending and are retried every tick, never dropped.
