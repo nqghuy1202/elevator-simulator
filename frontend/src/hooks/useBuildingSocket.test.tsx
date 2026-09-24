@@ -38,11 +38,15 @@ function makeSnapshot(tick: number): BuildingSnapshot {
 
 let capturedEmitHallCall: ((floor: number, direction: 'UP' | 'DOWN') => void) | undefined;
 let capturedEmitCarCall: ((elevatorId: string, floor: number) => void) | undefined;
+let capturedEmitDoorHold: ((elevatorId: string) => void) | undefined;
+let capturedEmitDoorClose: ((elevatorId: string) => void) | undefined;
 
 function TestHarness() {
-  const { emitHallCall, emitCarCall } = useBuildingSocket();
+  const { emitHallCall, emitCarCall, emitDoorHold, emitDoorClose } = useBuildingSocket();
   capturedEmitHallCall = emitHallCall;
   capturedEmitCarCall = emitCarCall;
+  capturedEmitDoorHold = emitDoorHold;
+  capturedEmitDoorClose = emitDoorClose;
   return null;
 }
 
@@ -65,6 +69,8 @@ beforeEach(() => {
   fakeSocket.close.mockClear();
   capturedEmitHallCall = undefined;
   capturedEmitCarCall = undefined;
+  capturedEmitDoorHold = undefined;
+  capturedEmitDoorClose = undefined;
   cleanup();
 });
 
@@ -122,6 +128,26 @@ describe('useBuildingSocket: emitCarCall', () => {
     capturedEmitCarCall?.('E1', 8);
 
     expect(fakeSocket.emit).toHaveBeenCalledWith('carCall', { elevatorId: 'E1', floor: 8 });
+  });
+});
+
+describe('useBuildingSocket: emitDoorHold', () => {
+  it('emits a doorHold event with {elevatorId} on the held socket', () => {
+    renderWithStore();
+
+    capturedEmitDoorHold?.('E1');
+
+    expect(fakeSocket.emit).toHaveBeenCalledWith('doorHold', { elevatorId: 'E1' });
+  });
+});
+
+describe('useBuildingSocket: emitDoorClose', () => {
+  it('emits a doorClose event with {elevatorId} on the held socket', () => {
+    renderWithStore();
+
+    capturedEmitDoorClose?.('E1');
+
+    expect(fakeSocket.emit).toHaveBeenCalledWith('doorClose', { elevatorId: 'E1' });
   });
 });
 

@@ -24,6 +24,8 @@ describe('ElevatorCar: renders the elevator summary line', () => {
         elevator={makeElevator({ id: 'E2', currentFloor: 3, direction: 'UP', doorState: 'CLOSED' })}
         floors={10}
         onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
       />,
     );
 
@@ -33,19 +35,43 @@ describe('ElevatorCar: renders the elevator summary line', () => {
 
 describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState (Story 2.4)', () => {
   it('renders no DestinationPanel buttons when doorState is CLOSED', () => {
-    render(<ElevatorCar elevator={makeElevator({ doorState: 'CLOSED' })} floors={10} onCarCall={vi.fn()} />);
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'CLOSED' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByLabelText(/Car call floor/)).not.toBeInTheDocument();
   });
 
   it('renders no DestinationPanel buttons when doorState is OPENING', () => {
-    render(<ElevatorCar elevator={makeElevator({ doorState: 'OPENING' })} floors={10} onCarCall={vi.fn()} />);
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'OPENING' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByLabelText(/Car call floor/)).not.toBeInTheDocument();
   });
 
   it('renders no DestinationPanel buttons when doorState is CLOSING', () => {
-    render(<ElevatorCar elevator={makeElevator({ doorState: 'CLOSING' })} floors={10} onCarCall={vi.fn()} />);
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'CLOSING' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByLabelText(/Car call floor/)).not.toBeInTheDocument();
   });
@@ -56,6 +82,8 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
         elevator={makeElevator({ doorState: 'OPEN', currentFloor: 5 })}
         floors={10}
         onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
       />,
     );
 
@@ -65,11 +93,25 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
 
   it('panel disappears purely by re-rendering off doorState, with no memory of "was it open"', () => {
     const { rerender } = render(
-      <ElevatorCar elevator={makeElevator({ doorState: 'OPEN' })} floors={10} onCarCall={vi.fn()} />,
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'OPEN' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
     );
     expect(screen.getByLabelText('Car call floor 8')).toBeInTheDocument();
 
-    rerender(<ElevatorCar elevator={makeElevator({ doorState: 'CLOSED' })} floors={10} onCarCall={vi.fn()} />);
+    rerender(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'CLOSED' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByLabelText('Car call floor 8')).not.toBeInTheDocument();
   });
@@ -81,6 +123,8 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
         elevator={makeElevator({ id: 'E1', doorState: 'OPEN', currentFloor: 5 })}
         floors={10}
         onCarCall={onCarCall}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
       />,
     );
 
@@ -95,9 +139,142 @@ describe('ElevatorCar: DestinationPanel visibility toggles strictly on doorState
         elevator={makeElevator({ doorState: 'OPEN', currentFloor: 5, stopQueue: [8] })}
         floors={10}
         onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
       />,
     );
 
     expect(screen.getByLabelText('Car call floor 8')).toBeDisabled();
+  });
+});
+
+describe('ElevatorCar: DoorControls visibility toggles strictly on doorState (Story 2.5)', () => {
+  it('renders no DoorControls buttons when doorState is CLOSED', () => {
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'CLOSED' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Close doors')).not.toBeInTheDocument();
+  });
+
+  it('renders no DoorControls buttons when doorState is OPENING', () => {
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'OPENING' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Close doors')).not.toBeInTheDocument();
+  });
+
+  it('renders no DoorControls buttons when doorState is CLOSING', () => {
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'CLOSING' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Close doors')).not.toBeInTheDocument();
+  });
+
+  it('renders the DoorControls when doorState is OPEN', () => {
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'OPEN' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Hold doors')).toBeInTheDocument();
+    expect(screen.getByLabelText('Close doors')).toBeInTheDocument();
+  });
+
+  it('controls disappear purely by re-rendering off doorState, with no memory of "was it open"', () => {
+    const { rerender } = render(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'OPEN' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Hold doors')).toBeInTheDocument();
+
+    rerender(
+      <ElevatorCar
+        elevator={makeElevator({ doorState: 'CLOSED' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
+  });
+
+  it('wires onDoorHold and onDoorClose through to DoorControls with the elevator id', () => {
+    const onDoorHold = vi.fn();
+    const onDoorClose = vi.fn();
+    render(
+      <ElevatorCar
+        elevator={makeElevator({ id: 'E1', doorState: 'OPEN' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={onDoorHold}
+        onDoorClose={onDoorClose}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Hold doors'));
+    fireEvent.click(screen.getByLabelText('Close doors'));
+
+    expect(onDoorHold).toHaveBeenCalledWith('E1');
+    expect(onDoorClose).toHaveBeenCalledWith('E1');
+  });
+
+  it('independent per elevator: only the OPEN elevator shows DoorControls', () => {
+    const { rerender } = render(
+      <ElevatorCar
+        elevator={makeElevator({ id: 'E1', doorState: 'OPEN' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Hold doors')).toBeInTheDocument();
+
+    rerender(
+      <ElevatorCar
+        elevator={makeElevator({ id: 'E2', doorState: 'CLOSED' })}
+        floors={10}
+        onCarCall={vi.fn()}
+        onDoorHold={vi.fn()}
+        onDoorClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText('Hold doors')).not.toBeInTheDocument();
   });
 });

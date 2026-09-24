@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { BuildingStateEvent, CarCallPayload, Direction, HallCallPayload } from 'shared/src/index.js';
+import type {
+  BuildingStateEvent,
+  CarCallPayload,
+  Direction,
+  DoorClosePayload,
+  DoorHoldPayload,
+  HallCallPayload,
+} from 'shared/src/index.js';
 import { useAppDispatch } from '../store/index.js';
 import { connectionReset, snapshotReceived } from '../store/buildingSlice.js';
 import { connectionStatusChanged } from '../store/uiSlice.js';
@@ -25,6 +32,20 @@ export interface UseBuildingSocketResult {
    * `emitHallCall`'s no-op-if-not-yet-connected behavior.
    */
   emitCarCall(elevatorId: string, floor: number): void;
+
+  /**
+   * Emit a `doorHold` event on the held socket (Story 2.5) — a stateless
+   * request that resets the server's door dwell timer (FR-4). No
+   * client-derived logic (AD-1): the server alone decides the effect.
+   */
+  emitDoorHold(elevatorId: string): void;
+
+  /**
+   * Emit a `doorClose` event on the held socket (Story 2.5) — a stateless
+   * request that cancels the remaining dwell timer so the elevator begins
+   * closing next tick (FR-5). No client-derived logic (AD-1).
+   */
+  emitDoorClose(elevatorId: string): void;
 }
 
 /**
@@ -35,8 +56,9 @@ export interface UseBuildingSocketResult {
  * dispatches `snapshotReceived` on every server `buildingState` broadcast.
  *
  * Returns `{ emitHallCall }` (Story 2.3) for client -> server Hall Call
- * requests and `{ emitCarCall }` (Story 2.4) for Car Call requests;
- * doorHold/doorClose follow the same pattern in Story 2.5.
+ * requests, `{ emitCarCall }` (Story 2.4) for Car Call requests, and
+ * `{ emitDoorHold, emitDoorClose }` (Story 2.5) for door dwell-timer
+ * control, all following the same pattern.
  */
 export function useBuildingSocket(): UseBuildingSocketResult {
   const dispatch = useAppDispatch();
@@ -84,5 +106,15 @@ export function useBuildingSocket(): UseBuildingSocketResult {
     socketRef.current?.emit('carCall', payload);
   }, []);
 
-  return { emitHallCall, emitCarCall };
+  const emitDoorHold = useCallback((elevatorId: string) => {
+    const payload: DoorHoldPayload = { elevatorId };
+    socketRef.current?.emit('doorHold', payload);
+  }, []);
+
+  const emitDoorClose = useCallback((elevatorId: string) => {
+    const payload: DoorClosePayload = { elevatorId };
+    socketRef.current?.emit('doorClose', payload);
+  }, []);
+
+  return { emitHallCall, emitCarCall, emitDoorHold, emitDoorClose };
 }

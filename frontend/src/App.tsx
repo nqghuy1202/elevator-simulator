@@ -8,11 +8,11 @@ import { useAppSelector } from './store/index.js';
  * works end-to-end: connect over WS, receive a `BuildingSnapshot`, render
  * it from the Redux store. Story 2.3 adds `BuildingView` (Hall Call UI);
  * Story 2.4 adds `ElevatorCar`/`DestinationPanel` (Car Call UI) in place of
- * the raw elevator `<li>` list; Story 2.5 builds Door Hold/Close on top of
- * this.
+ * the raw elevator `<li>` list; Story 2.5 adds `DoorControls` (Door
+ * Hold/Close UI) on top of this.
  */
 function App() {
-  const { emitHallCall, emitCarCall } = useBuildingSocket();
+  const { emitHallCall, emitCarCall, emitDoorHold, emitDoorClose } = useBuildingSocket();
 
   const connectionStatus = useAppSelector((state) => state.ui.connectionStatus);
   const snapshot = useAppSelector((state) => state.building.snapshot);
@@ -35,6 +35,8 @@ function App() {
                 elevator={elevator}
                 floors={snapshot.floors}
                 onCarCall={emitCarCall}
+                onDoorHold={emitDoorHold}
+                onDoorClose={emitDoorClose}
               />
             ))}
           </ul>
