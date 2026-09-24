@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-23-2026 21:48
-last_updated: 09-24-2026 08:21
+last_updated: 09-24-2026 12:45
 project: elevator-simulator
 project_key: NOKEY
 tracking_system: file-system
@@ -51,7 +51,7 @@ development_status:
   2-5-door-hold-close-ui: review
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-backend-container: backlog
+  epic-3: in-progress
+  3-1-backend-container: review
   3-2-frontend-container-nginx-compose-orchestration: backlog
   epic-3-retrospective: optional
