@@ -26,6 +26,18 @@ describe('Dispatcher.handleHallCall', () => {
     expect(elevator.getSnapshot().stopQueue).toContain(7);
   });
 
+  it('threads the request direction into assignHallCall (Story 2.3 tagging)', () => {
+    const elevator = new Elevator('E1', 1);
+    const dispatcher = new Dispatcher([elevator], new NearestCarStrategy());
+
+    dispatcher.handleHallCall(7, 'UP');
+
+    // assignHallCall tagged 'UP' on E1 for floor 7 -- observable once E1 arrives and opens its doors.
+    for (let i = 0; i < 6; i++) elevator.tick(); // 1 -> 7
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+    expect(elevator.takeServicedHallCallDirections(7)).toEqual(new Set(['UP']));
+  });
+
   it('picks the nearer of two idle elevators', () => {
     const far = new Elevator('E1', 2);
     const near = new Elevator('E2', 8);

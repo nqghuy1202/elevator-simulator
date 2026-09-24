@@ -256,6 +256,121 @@ describe('Building introspection never exposes a live Elevator', () => {
   });
 });
 
+describe('Building.getActiveHallCalls (Story 2.3, FR-2)', () => {
+  it('press UP, no prior call: activeHallCalls includes it immediately after handleHallCall', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+
+    building.handleHallCall(5, 'UP');
+
+    expect(building.getActiveHallCalls()).toEqual([{ floor: 5, direction: 'UP' }]);
+  });
+
+  it('repeat press on an already-active direction: no duplicate entry, order unchanged', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    building.handleHallCall(5, 'UP');
+
+    building.handleHallCall(5, 'UP');
+
+    expect(building.getActiveHallCalls()).toEqual([{ floor: 5, direction: 'UP' }]);
+  });
+
+  it('elevator services the call: activeHallCalls drops it once that elevator opens its doors there', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    building.handleHallCall(5, 'UP');
+    expect(building.getActiveHallCalls()).toEqual([{ floor: 5, direction: 'UP' }]);
+
+    for (let i = 0; i < 10; i++) {
+      building.tick();
+      const arrived = building
+        .getElevatorSnapshots()
+        .some((s) => s.currentFloor === 5 && s.doorState === 'OPEN');
+      if (arrived) break;
+    }
+
+    expect(building.getActiveHallCalls()).toEqual([]);
+  });
+
+  it('opposite direction independence: servicing UP at floor 5 leaves DOWN at floor 5 still active', () => {
+    // Sole elevator moving UP from 1 toward 10 is eligible for the UP call at
+    // 5 but not the DOWN call at 5 (wrong direction) -- so DOWN goes pending
+    // and stays untouched by E1 servicing its own UP assignment at floor 5.
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    building.handleHallCall(10, 'UP'); // idle E1 -> MovingUpState toward 10
+    expect(building.getElevatorSnapshots()[0]?.direction).toBe('UP');
+
+    building.handleHallCall(5, 'UP'); // eligible (same direction, ahead) -> queued + tagged on E1
+    building.handleHallCall(5, 'DOWN'); // ineligible (wrong direction) -> pending, never tagged on E1
+    expect(building.getActiveHallCalls()).toEqual(
+      expect.arrayContaining([
+        { floor: 5, direction: 'UP' },
+        { floor: 5, direction: 'DOWN' },
+      ]),
+    );
+
+    for (let i = 0; i < 4; i++) building.tick(); // 1 -> 5, arrives, doors open (drains UP only)
+
+    expect(building.getElevatorSnapshots()[0]).toMatchObject({ currentFloor: 5, doorState: 'OPEN' });
+    expect(building.getActiveHallCalls()).not.toContainEqual({ floor: 5, direction: 'UP' });
+    expect(building.getActiveHallCalls()).toContainEqual({ floor: 5, direction: 'DOWN' });
+  });
+
+  it('immediate same-floor service: idle elevator already at floor 5, hall call for floor 5 drains synchronously within handleHallCall', () => {
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    // E1 starts at floor 1; move it to floor 5 and let it settle Idle there.
+    building.handleHallCall(5, 'UP');
+    for (let i = 0; i < 10; i++) {
+      building.tick();
+      if (building.getElevatorSnapshots()[0]?.stateName === 'IDLE') break;
+    }
+    expect(building.getElevatorSnapshots()[0]).toMatchObject({ currentFloor: 5, stateName: 'IDLE' });
+    expect(building.getActiveHallCalls()).toEqual([]);
+
+    building.handleHallCall(5, 'DOWN'); // idle elevator already at floor 5 -> same-floor fast path, synchronous
+
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+    expect(building.getActiveHallCalls()).toEqual([]);
+  });
+
+  it('piggyback on an already-queued stop: a same-direction Hall Call for a floor already queued via a Car Call still drains on arrival', () => {
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    building.handleHallCall(1, 'UP'); // same-floor fast path: E1 opens doors at floor 1 immediately
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+    building.handleCarCall('E1', 8); // Car Call queues floor 8 while doors are open at 1
+    // Let the door-close cycle complete so E1 starts moving toward 8.
+    for (let i = 0; i < 5; i++) {
+      building.tick();
+      if (building.getElevatorSnapshots()[0]?.stateName === 'MOVING_UP') break;
+    }
+    expect(building.getElevatorSnapshots()[0]?.stopQueue).toContain(8);
+
+    building.handleHallCall(8, 'UP'); // same direction, same elevator already eligible and en route -> insertStop no-ops, but tagged
+    expect(building.getActiveHallCalls()).toEqual([{ floor: 8, direction: 'UP' }]);
+
+    for (let i = 0; i < 10; i++) {
+      building.tick();
+      const arrived = building
+        .getElevatorSnapshots()
+        .some((s) => s.currentFloor === 8 && s.doorState === 'OPEN');
+      if (arrived) break;
+    }
+
+    expect(building.getElevatorSnapshots()[0]).toMatchObject({ currentFloor: 8, doorState: 'OPEN' });
+    expect(building.getActiveHallCalls()).toEqual([]);
+  });
+
+  it('press while doors already open here: tags and drains within the same handleHallCall call', () => {
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    building.handleHallCall(1, 'UP'); // same-floor fast path: E1 opens doors at floor 1 immediately (mid-dwell)
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+    expect(building.getActiveHallCalls()).toEqual([]);
+
+    building.handleHallCall(1, 'DOWN'); // arrives while E1's doors are already OPEN at floor 1
+
+    expect(building.getActiveHallCalls()).toEqual([]);
+    expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
+  });
+});
+
 describe('Building.handleCarCall routing (FR-4)', () => {
   it('routes a Car Call to the named elevator, queuing the floor via assignCarCall', () => {
     const building = new Building({ floors: 10, elevatorCount: 3 });

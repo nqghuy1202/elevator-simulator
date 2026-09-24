@@ -32,4 +32,12 @@ export interface BuildingSnapshot {
   readonly floors: number;
   readonly elevators: readonly ElevatorSnapshot[];
   readonly pendingHallCalls: readonly PendingHallCall[];
+  /**
+   * Every Hall Call `{floor, direction}` from press until the elevator that
+   * took it opens its doors there (Story 2.3). Independent of
+   * `pendingHallCalls` (`Dispatcher`'s unassigned-backlog concept, FR-7):
+   * this stays lit through and past assignment, clearing only on actual
+   * service, so it drives the FR-2 "lit until serviced" client indicator.
+   */
+  readonly activeHallCalls: readonly PendingHallCall[];
 }

@@ -10,6 +10,7 @@ function makeSnapshot(tick: number): BuildingSnapshot {
     floors: 10,
     elevators: [],
     pendingHallCalls: [],
+    activeHallCalls: [],
   };
 }
 

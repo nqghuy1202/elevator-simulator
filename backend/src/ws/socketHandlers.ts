@@ -29,6 +29,7 @@ export function buildSnapshot(building: Building, tick: number): BuildingSnapsho
     floors: building.getFloorCount(),
     elevators: building.getElevatorSnapshots(),
     pendingHallCalls: building.getPendingCalls(),
+    activeHallCalls: building.getActiveHallCalls(),
   };
 }
 

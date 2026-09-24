@@ -26,6 +26,15 @@ export class Building {
   private readonly elevators: Elevator[];
   private readonly dispatcher: Dispatcher;
   private readonly floors: number;
+  /**
+   * Every Hall Call `{floor, direction}` from press until the elevator that
+   * took it opens its doors there (Story 2.3, FR-2). Independent of
+   * `Dispatcher`'s pending-call backlog: a call added here stays until
+   * `drainServicedHallCalls` observes an elevator open its doors at that
+   * floor having taken that direction — regardless of how quickly (or
+   * slowly) `Dispatcher` assigns it.
+   */
+  private outstandingHallCalls: HallCallRequest[] = [];
 
   constructor({ floors, elevatorCount }: BuildingConfig) {
     if (!Number.isInteger(floors) || floors <= 0) {
@@ -52,15 +61,27 @@ export class Building {
       elevator.tick();
     }
     this.dispatcher.reevaluatePending();
+    // Covers arrivals-by-movement and any later reassignment: must run after
+    // reevaluatePending() so a call resolved within this same tick is
+    // observed as serviced (if its assignee also opens its doors this tick).
+    this.drainServicedHallCalls();
   }
 
   /**
    * Handle a Hall Call for `floor` in `direction`, delegating to this
    * Building's `Dispatcher`. External callers reach Hall Call assignment
    * through `Building`, never through `Dispatcher` directly.
+   *
+   * Also records `{floor, direction}` in `outstandingHallCalls` (deduped by
+   * floor+direction, same pattern as `Dispatcher.addPending`) — independent
+   * of `Dispatcher`'s own pending-call bookkeeping — and immediately drains
+   * any Hall Calls serviced synchronously by this same call (the same-floor
+   * fast path, or a press while an elevator's doors are already open here).
    */
   handleHallCall(floor: number, direction: HallCallRequest['direction']): void {
+    this.addOutstandingHallCall({ floor, direction });
     this.dispatcher.handleHallCall(floor, direction);
+    this.drainServicedHallCalls();
   }
 
   /**
@@ -104,6 +125,14 @@ export class Building {
     return this.dispatcher.getPendingCalls();
   }
 
+  /**
+   * Read-only view of every Hall Call from press until serviced (Story 2.3,
+   * FR-2) — independent of `getPendingCalls()`'s Dispatcher-backlog concept.
+   */
+  getActiveHallCalls(): readonly HallCallRequest[] {
+    return [...this.outstandingHallCalls];
+  }
+
   /** The floor count this Building was configured with. */
   getFloorCount(): number {
     return this.floors;
@@ -116,5 +145,37 @@ export class Building {
    */
   private findElevator(elevatorId: string): Elevator | undefined {
     return this.elevators.find((elevator) => elevator.id === elevatorId);
+  }
+
+  /** Record `request` in `outstandingHallCalls`, unless one for the same (floor, direction) is already outstanding. */
+  private addOutstandingHallCall(request: HallCallRequest): void {
+    const alreadyOutstanding = this.outstandingHallCalls.some(
+      (call) => call.floor === request.floor && call.direction === request.direction,
+    );
+    if (!alreadyOutstanding) {
+      this.outstandingHallCalls.push(request);
+    }
+  }
+
+  /**
+   * For every Elevator whose doors are currently `OPEN`, drain whichever
+   * Hall Call directions it has taken responsibility for at its current
+   * floor (`takeServicedHallCallDirections`) and remove matching entries
+   * from `outstandingHallCalls`. Called at the end of `handleHallCall()`
+   * (covers the synchronous same-floor fast path) and at the end of
+   * `tick()`, after `reevaluatePending()` (covers arrivals-by-movement and
+   * later reassignment).
+   */
+  private drainServicedHallCalls(): void {
+    for (const elevator of this.elevators) {
+      const snapshot = elevator.getSnapshot();
+      if (snapshot.doorState !== 'OPEN') continue;
+
+      for (const direction of elevator.takeServicedHallCallDirections(snapshot.currentFloor)) {
+        this.outstandingHallCalls = this.outstandingHallCalls.filter(
+          (call) => !(call.floor === snapshot.currentFloor && call.direction === direction),
+        );
+      }
+    }
   }
 }

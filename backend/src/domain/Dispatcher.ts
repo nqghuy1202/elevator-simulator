@@ -88,7 +88,7 @@ export class Dispatcher {
     if (!elevator) {
       throw new Error(`Dispatcher: strategy selected unknown elevator id "${selected.id}"`);
     }
-    return elevator.assignHallCall(request.floor);
+    return elevator.assignHallCall(request.floor, request.direction);
   }
 
   /** Store `request` as pending, unless one for the same (floor, direction) is already pending. */

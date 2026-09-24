@@ -18,6 +18,7 @@ const fakeSocket = {
     handlers.set(event, handler);
     return fakeSocket;
   }),
+  emit: vi.fn(),
   close: vi.fn(),
 };
 
@@ -31,11 +32,15 @@ function makeSnapshot(tick: number): BuildingSnapshot {
     floors: 10,
     elevators: [],
     pendingHallCalls: [],
+    activeHallCalls: [],
   };
 }
 
+let capturedEmitHallCall: ((floor: number, direction: 'UP' | 'DOWN') => void) | undefined;
+
 function TestHarness() {
-  useBuildingSocket();
+  const { emitHallCall } = useBuildingSocket();
+  capturedEmitHallCall = emitHallCall;
   return null;
 }
 
@@ -54,7 +59,9 @@ function renderWithStore() {
 beforeEach(() => {
   handlers.clear();
   fakeSocket.on.mockClear();
+  fakeSocket.emit.mockClear();
   fakeSocket.close.mockClear();
+  capturedEmitHallCall = undefined;
   cleanup();
 });
 
@@ -92,6 +99,16 @@ describe('useBuildingSocket: dispatches on real socket event', () => {
     handlers.get('connect_error')?.(undefined);
 
     expect(store.getState().ui.connectionStatus).toBe('disconnected');
+  });
+});
+
+describe('useBuildingSocket: emitHallCall', () => {
+  it('emits a hallCall event with {floor, direction} on the held socket', () => {
+    renderWithStore();
+
+    capturedEmitHallCall?.(5, 'UP');
+
+    expect(fakeSocket.emit).toHaveBeenCalledWith('hallCall', { floor: 5, direction: 'UP' });
   });
 });
 

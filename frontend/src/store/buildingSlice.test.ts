@@ -17,6 +17,7 @@ function makeSnapshot(tick: number): BuildingSnapshot {
       },
     ],
     pendingHallCalls: [],
+    activeHallCalls: [],
   };
 }
 

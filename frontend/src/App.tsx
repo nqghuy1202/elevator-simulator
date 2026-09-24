@@ -1,14 +1,16 @@
+import { BuildingView } from './components/BuildingView.js';
 import { useBuildingSocket } from './hooks/useBuildingSocket.js';
 import { useAppSelector } from './store/index.js';
 
 /**
  * Minimal, unstyled walking-skeleton view (PRD NFR-7) proving the pipeline
  * works end-to-end: connect over WS, receive a `BuildingSnapshot`, render
- * it from the Redux store. Not the real UI — Stories 2.3-2.5 build Hall
- * Call / Car Call / Door Hold-Close on top of this.
+ * it from the Redux store. Story 2.3 adds `BuildingView` (Hall Call UI)
+ * alongside the existing snapshot summary; Stories 2.4/2.5 build Car Call /
+ * Door Hold-Close on top of this.
  */
 function App() {
-  useBuildingSocket();
+  const { emitHallCall } = useBuildingSocket();
 
   const connectionStatus = useAppSelector((state) => state.ui.connectionStatus);
   const snapshot = useAppSelector((state) => state.building.snapshot);
@@ -32,6 +34,7 @@ function App() {
               </li>
             ))}
           </ul>
+          <BuildingView snapshot={snapshot} onHallCall={emitHallCall} />
         </div>
       )}
     </main>

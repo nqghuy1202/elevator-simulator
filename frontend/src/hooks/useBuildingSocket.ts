@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { BuildingStateEvent } from 'shared/src/index.js';
+import type { BuildingStateEvent, Direction, HallCallPayload } from 'shared/src/index.js';
 import { useAppDispatch } from '../store/index.js';
 import { connectionReset, snapshotReceived } from '../store/buildingSlice.js';
 import { connectionStatusChanged } from '../store/uiSlice.js';
@@ -11,6 +11,16 @@ function resolveBackendUrl(): string {
   return import.meta.env['VITE_BACKEND_URL'] ?? DEFAULT_BACKEND_URL;
 }
 
+/** Return type of `useBuildingSocket` — the client emit surface built on top of the held socket ref. */
+export interface UseBuildingSocketResult {
+  /**
+   * Emit a `hallCall` event on the held socket (Story 2.3). A no-op if the
+   * socket hasn't connected yet — `socketRef.current` is `null` until the
+   * connect effect runs, and optional chaining below makes that safe.
+   */
+  emitHallCall(floor: number, direction: Exclude<Direction, 'IDLE'>): void;
+}
+
 /**
  * The only frontend module that touches `socket.io-client` directly (AD-1's
  * "one adapter" discipline, mirrored on the client) — components and other
@@ -18,11 +28,11 @@ function resolveBackendUrl(): string {
  * `uiSlice.connectionStatus` in sync with the socket's lifecycle, and
  * dispatches `snapshotReceived` on every server `buildingState` broadcast.
  *
- * Only reads/dispatches today; nothing yet calls `socket.emit` for
- * hallCall/carCall/doorHold/doorClose — Stories 2.3-2.5 build those on top
- * of this hook.
+ * Returns `{ emitHallCall }` (Story 2.3) for client -> server Hall Call
+ * requests; carCall/doorHold/doorClose follow the same pattern in Stories
+ * 2.4/2.5.
  */
-export function useBuildingSocket(): void {
+export function useBuildingSocket(): UseBuildingSocketResult {
   const dispatch = useAppDispatch();
   const socketRef = useRef<Socket | null>(null);
 
@@ -57,4 +67,11 @@ export function useBuildingSocket(): void {
       socketRef.current = null;
     };
   }, [dispatch]);
+
+  const emitHallCall = useCallback((floor: number, direction: Exclude<Direction, 'IDLE'>) => {
+    const payload: HallCallPayload = { floor, direction };
+    socketRef.current?.emit('hallCall', payload);
+  }, []);
+
+  return { emitHallCall };
 }

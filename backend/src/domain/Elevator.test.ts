@@ -380,3 +380,88 @@ describe('Elevator.openDoor() / closeDoor() (Door Hold/Close commands, AD-2)', (
     expect(snapshot.stateName).toBe('IDLE');
   });
 });
+
+describe('Elevator.assignHallCall direction tagging / takeServicedHallCallDirections (Story 2.3)', () => {
+  it('assignHallCall(floor) with no direction: compiles and behaves exactly like before, no tag recorded', () => {
+    const elevator = new Elevator('E1', 5);
+
+    const result = elevator.assignHallCall(8);
+
+    expect(result).toBe(true);
+    expect(elevator.takeServicedHallCallDirections(8).size).toBe(0);
+  });
+
+  it('fresh insert with a direction: tags that floor/direction, drained once doors open there', () => {
+    const elevator = new Elevator('E1', 5);
+
+    elevator.assignHallCall(8, 'UP');
+    elevator.tick(); // 5 -> 6
+    elevator.tick(); // 6 -> 7
+    elevator.tick(); // 7 -> 8, arrives, doors open
+
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+    const drained = elevator.takeServicedHallCallDirections(8);
+    expect(drained).toEqual(new Set(['UP']));
+    // Draining again (still open) is a safe no-op -- entry already gone.
+    expect(elevator.takeServicedHallCallDirections(8).size).toBe(0);
+  });
+
+  it('piggyback on an already-queued stop (Car Call to the same floor): insertStop no-ops but the direction is still tagged', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignCarCall(8); // Car Call queues floor 8 first
+
+    const result = elevator.assignHallCall(8, 'UP'); // same floor already queued -> insertStop no-ops
+
+    expect(result).toBe(false);
+    elevator.tick(); // 5 -> 6
+    elevator.tick(); // 6 -> 7
+    elevator.tick(); // 7 -> 8, arrives, doors open
+
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+    expect(elevator.takeServicedHallCallDirections(8)).toEqual(new Set(['UP']));
+  });
+
+  it('piggyback on an already-tagged same-direction Hall Call: both dedupe into one Set entry, drained together', () => {
+    const elevator = new Elevator('E1', 1);
+    elevator.assignHallCall(9); // Idle -> MovingUpState, queues 9 (no direction tag yet)
+    elevator.assignHallCall(9, 'UP'); // dispatcher retry against the same still-eligible elevator, now tags
+
+    elevator.assignHallCall(9, 'UP'); // duplicate tag attempt -- idempotent Set.add
+
+    for (let i = 0; i < 8; i++) elevator.tick(); // 1 -> 9, arrives, doors open
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+    expect(elevator.takeServicedHallCallDirections(9)).toEqual(new Set(['UP']));
+  });
+
+  it('press while doors already open here: tags immediately, drains within the same call (no insertStop queuing needed)', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(5, 'UP'); // same-floor fast path: opens doors immediately, tagged
+    expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
+    expect(elevator.getSnapshot().doorState).toBe('OPEN');
+
+    // A second Hall Call in a compatible direction arrives while still open here.
+    const result = elevator.assignHallCall(5, 'UP');
+
+    expect(result).toBe(false); // insertStop no-ops: same floor, doors not CLOSED
+    expect(elevator.takeServicedHallCallDirections(5)).toEqual(new Set(['UP']));
+  });
+
+  it('opposite direction independence: tagging UP for a floor never drains a separately-tracked DOWN tag at the same floor', () => {
+    const elevator = new Elevator('E1', 5);
+    elevator.assignHallCall(8, 'UP');
+    elevator.assignHallCall(8, 'DOWN'); // hypothetically tagged on the same elevator/floor (dedupe by direction, not floor)
+
+    elevator.tick(); // 5 -> 6
+    elevator.tick(); // 6 -> 7
+    elevator.tick(); // 7 -> 8, arrives, doors open
+
+    const drained = elevator.takeServicedHallCallDirections(8);
+    expect(drained).toEqual(new Set(['UP', 'DOWN']));
+  });
+
+  it('takeServicedHallCallDirections on a floor with no tags returns an empty Set, never throws', () => {
+    const elevator = new Elevator('E1', 5);
+
+    expect(elevator.takeServicedHallCallDirections(3).size).toBe(0);
+  });
+});

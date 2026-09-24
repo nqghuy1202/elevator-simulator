@@ -26,6 +26,14 @@ export class Elevator {
   private stopQueue: number[] = [];
   private state: ElevatorState = new IdleState();
   private dwellTicksRemaining = 0;
+  /**
+   * Tracks, per floor, which Hall Call directions this Elevator has taken
+   * responsibility for (Story 2.3) — independent pure bookkeeping alongside
+   * `stopQueue`, never consulted by any state-machine logic. Populated by
+   * `assignHallCall` and drained by `takeServicedHallCallDirections` once
+   * this Elevator actually opens its doors at that floor.
+   */
+  private hallCallDirections = new Map<number, Set<Exclude<Direction, 'IDLE'>>>();
 
   constructor(id: string, startFloor: number) {
     if (!Number.isInteger(startFloor)) {
@@ -43,11 +51,32 @@ export class Elevator {
   /**
    * Assign a Hall Call at `floor`. The single external entry point Hall
    * Call dispatch (`Dispatcher`) uses; routes through `insertStop` like
-   * `assignCarCall` does. Returns whether the floor was actually queued.
+   * `assignCarCall` does. Returns whether the floor was actually queued —
+   * unchanged by the `direction` tagging below, which is pure additional
+   * bookkeeping and never affects `insertStop`/`Dispatcher` routing.
+   *
+   * `direction` is optional so every existing call site/test calling
+   * `assignHallCall(floor)` alone keeps compiling and behaving unchanged.
+   * When provided, the floor's direction is tagged in `hallCallDirections`
+   * whenever, after `insertStop`, that floor ends up in `stopQueue` for ANY
+   * reason (a fresh insert, or already queued for another reason — a Car
+   * Call, or a same-direction Hall Call already tagged there) — since this
+   * Elevator is still going to open its doors there — or the elevator is
+   * already stationary at that exact floor with doors currently `OPEN`
+   * (Review Triage Log #1/#2: widened from "fresh insert only", which
+   * stranded Hall Calls lit forever in those two cases).
    */
-  assignHallCall(floor: number): boolean {
+  assignHallCall(floor: number, direction?: Exclude<Direction, 'IDLE'>): boolean {
     const inserted = this.insertStop(floor);
     if (inserted) this.state.onStopAssigned(this);
+
+    const alreadyThere = floor === this.currentFloor && this.doorState === 'OPEN';
+    if (direction !== undefined && (this.stopQueue.includes(floor) || alreadyThere)) {
+      const directions = this.hallCallDirections.get(floor) ?? new Set();
+      directions.add(direction);
+      this.hallCallDirections.set(floor, directions);
+    }
+
     return inserted;
   }
 
@@ -89,6 +118,22 @@ export class Elevator {
     }
     this.dwellTicksRemaining = 0;
     return true;
+  }
+
+  /**
+   * Read-and-clear this floor's tagged Hall Call directions (Story 2.3):
+   * returns whichever directions were tagged onto this Elevator for `floor`
+   * via `assignHallCall`, then removes that floor's entry entirely. Callers
+   * (`Building.drainServicedHallCalls`) are expected to call this only while
+   * this Elevator's doors are `OPEN` at `floor` — calling it again on a
+   * still-open door is a safe no-op since the entry is already gone, so no
+   * diffing between ticks is needed. Pure bookkeeping alongside `stopQueue`;
+   * never consulted by any state-machine logic.
+   */
+  takeServicedHallCallDirections(floor: number): ReadonlySet<Exclude<Direction, 'IDLE'>> {
+    const directions = this.hallCallDirections.get(floor) ?? new Set<Exclude<Direction, 'IDLE'>>();
+    this.hallCallDirections.delete(floor);
+    return directions;
   }
 
   /** Read-only external view of this elevator's state. */

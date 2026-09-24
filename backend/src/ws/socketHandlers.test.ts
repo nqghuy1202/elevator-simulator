@@ -59,6 +59,7 @@ describe('registerSocketHandlers: connect emits an immediate full snapshot', () 
     expect(snapshot.floors).toBe(10);
     expect(snapshot.elevators).toHaveLength(3);
     expect(snapshot.pendingHallCalls).toEqual([]);
+    expect(snapshot.activeHallCalls).toEqual([]);
   });
 });
 
@@ -74,6 +75,7 @@ describe('registerSocketHandlers: hallCall', () => {
       .getElevatorSnapshots()
       .find((s) => s.stopQueue.includes(5) || s.currentFloor === 5);
     expect(assigned).toBeDefined();
+    expect(building.getActiveHallCalls()).toEqual([{ floor: 5, direction: 'UP' }]);
   });
 });
 
@@ -174,6 +176,12 @@ describe('buildSnapshot', () => {
     expect(snapshot.floors).toBe(10);
     expect(snapshot.elevators).toHaveLength(1);
     expect(snapshot.pendingHallCalls).toEqual([{ floor: 5, direction: 'DOWN' }]);
+    expect(snapshot.activeHallCalls).toEqual(
+      expect.arrayContaining([
+        { floor: 9, direction: 'UP' },
+        { floor: 5, direction: 'DOWN' },
+      ]),
+    );
   });
 });
 
@@ -231,6 +239,7 @@ describe('socketHandlers: real Socket.IO server + client integration', () => {
     expect(snapshot.floors).toBe(10);
     expect(snapshot.elevators).toHaveLength(3);
     expect(snapshot.pendingHallCalls).toEqual([]);
+    expect(snapshot.activeHallCalls).toEqual([]);
   });
 
   it('emitting hallCall produces a domain effect reflected in the next buildingState broadcast', async () => {
