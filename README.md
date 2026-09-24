@@ -14,6 +14,10 @@ Then open **http://localhost:8080** in a browser. The frontend is served by Ngin
 
 Stop the stack with `docker compose down`.
 
+## Deploying publicly (VPS + domain)
+
+See [`DEPLOY.md`](./DEPLOY.md) — `docker-compose.prod.yml` adds Caddy in front of the same containers for automatic HTTPS.
+
 ## Running locally without Docker
 
 Requires Node.js 24+.

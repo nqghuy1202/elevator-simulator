@@ -1,3 +1,6 @@
+import { ArrowsOutLineHorizontal, ArrowsInLineHorizontal } from '@phosphor-icons/react';
+import './DoorControls.css';
+
 export interface DoorControlsProps {
   readonly elevatorId: string;
   readonly onDoorHold: (elevatorId: string) => void;
@@ -14,12 +17,14 @@ export interface DoorControlsProps {
  */
 export function DoorControls({ elevatorId, onDoorHold, onDoorClose }: DoorControlsProps) {
   return (
-    <div>
-      <button type="button" aria-label="Hold doors" onClick={() => onDoorHold(elevatorId)}>
-        ◁▷ Hold
+    <div className="door-controls">
+      <button type="button" aria-label="Hold doors" className="door-controls__button" onClick={() => onDoorHold(elevatorId)}>
+        <ArrowsOutLineHorizontal size={16} weight="bold" aria-hidden="true" />
+        Hold
       </button>
-      <button type="button" aria-label="Close doors" onClick={() => onDoorClose(elevatorId)}>
-        ▷◁ Close
+      <button type="button" aria-label="Close doors" className="door-controls__button" onClick={() => onDoorClose(elevatorId)}>
+        <ArrowsInLineHorizontal size={16} weight="bold" aria-hidden="true" />
+        Close
       </button>
     </div>
   );

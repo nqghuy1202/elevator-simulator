@@ -1,5 +1,6 @@
 import type { BuildingSnapshot } from 'shared/src/index.js';
 import { FloorHallPanel } from './FloorHallPanel.js';
+import './BuildingView.css';
 
 export interface BuildingViewProps {
   readonly snapshot: BuildingSnapshot;
@@ -15,7 +16,7 @@ export function BuildingView({ snapshot, onHallCall }: BuildingViewProps) {
   const floorNumbers = Array.from({ length: snapshot.floors }, (_, i) => snapshot.floors - i);
 
   return (
-    <div>
+    <div className="building-view">
       {floorNumbers.map((floor) => (
         <FloorHallPanel
           key={floor}

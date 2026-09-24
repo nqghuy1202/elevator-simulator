@@ -8,8 +8,13 @@
  * no UI. Pure console output demonstrating SCAN/LOOK dispatch end-to-end.
  */
 import { Building } from './domain/Building.js';
+import { DOOR_DWELL_TICKS } from './domain/Elevator.js';
 
-const TOTAL_TICKS = 26;
+// Sized to comfortably cover the full narrated cycle -- two dwell-and-move
+// legs (floor 5, then floor 10) plus the return trip to service the
+// Pending DOWN call -- so the story doesn't cut off mid-cycle. Scales with
+// DOOR_DWELL_TICKS since each door-open dwell is the dominant cost.
+const TOTAL_TICKS = 2 * DOOR_DWELL_TICKS + 20;
 
 function formatSnapshot(snapshot: ReturnType<Building['getElevatorSnapshots']>[number]): string {
   const queue = snapshot.stopQueue.length > 0 ? `[${snapshot.stopQueue.join(',')}]` : '[]';

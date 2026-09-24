@@ -1,0 +1,6 @@
+{$DOMAIN} {
+	# Uncomment to receive Let's Encrypt expiry/renewal notices:
+	# tls you@example.com
+
+	reverse_proxy frontend:80
+}

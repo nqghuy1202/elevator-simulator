@@ -192,6 +192,12 @@
       "sourceType": "github",
       "skillPath": "skills/bmod-method/SKILL.md",
       "computedHash": "6b6fea1b66213195ad5ab3382b20c9a2cad82b8ad1d5510b56d937aae80fd708"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "eb75bf6085080d7d31fa2c0f9fd98d49abd229356147999b09177b733276f806"
     }
   }
 }

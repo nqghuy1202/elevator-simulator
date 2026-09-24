@@ -1,3 +1,5 @@
+import './DestinationPanel.css';
+
 export interface DestinationPanelProps {
   readonly elevatorId: string;
   readonly currentFloor: number;
@@ -28,7 +30,7 @@ export function DestinationPanel({
   );
 
   return (
-    <div>
+    <div className="destination-panel">
       {floorNumbers.map((floor) => {
         const alreadyQueued = stopQueue.includes(floor);
         return (
@@ -36,11 +38,12 @@ export function DestinationPanel({
             key={floor}
             type="button"
             aria-label={`Car call floor ${floor}`}
+            className="destination-panel__button"
             disabled={alreadyQueued}
             onClick={() => onCarCall(elevatorId, floor)}
           >
             {floor}
-            {alreadyQueued ? ' (queued)' : ''}
+            {alreadyQueued && <span className="sr-only"> (queued)</span>}
           </button>
         );
       })}

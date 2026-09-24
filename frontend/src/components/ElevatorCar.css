@@ -1,0 +1,59 @@
+.elevator-car {
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+}
+
+.elevator-car__shaft {
+  position: relative;
+  border-radius: var(--radius-md);
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.elevator-car__floor-cell {
+  height: var(--row-height);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.elevator-car__floor-cell:last-child {
+  border-bottom: none;
+}
+
+.elevator-car__cabin {
+  position: absolute;
+  top: 0;
+  left: var(--space-1);
+  right: var(--space-1);
+  height: calc(var(--row-height) - (var(--space-1) * 2));
+  margin-top: var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  transition:
+    transform 480ms linear,
+    background-color 150ms;
+}
+
+.elevator-car__cabin--open {
+  background-color: var(--color-open);
+  color: var(--color-on-open);
+}
+
+.elevator-car__floor-digit {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.elevator-car__docked-panel {
+  margin-top: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+}

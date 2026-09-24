@@ -1,0 +1,10 @@
+.building-view {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  overflow: hidden;
+}
+
+.building-view > *:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}

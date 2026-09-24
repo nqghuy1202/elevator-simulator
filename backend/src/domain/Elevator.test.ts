@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { Elevator } from './Elevator.js';
+import { DOOR_DWELL_TICKS, Elevator } from './Elevator.js';
+
+/** Ticks an elevator through its full dwell countdown (still `DOOR_OPEN` after this) without expiring it. */
+function tickThroughDwell(elevator: Elevator): void {
+  for (let i = 0; i < DOOR_DWELL_TICKS; i++) elevator.tick();
+}
 
 describe('Elevator state machine', () => {
   it('Idle gets a stop above: tick() transitions to MovingUpState', () => {
@@ -68,9 +73,7 @@ describe('Elevator state machine', () => {
     expect(snapshot.stateName).toBe('DOOR_OPEN');
     expect(snapshot.stopQueue).toEqual([9]);
 
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
-    elevator.tick(); // dwell 1 -> 0
+    tickThroughDwell(elevator); // dwell counts down to 0, door still OPEN
     elevator.tick(); // dwell expired, 9 still queued above -> MovingUp again
     expect(elevator.getSnapshot().stateName).toBe('MOVING_UP');
 
@@ -89,13 +92,11 @@ describe('Elevator state machine', () => {
     elevator.assignHallCall(8);
     elevator.tick(); // 5 -> 6
     elevator.tick(); // 6 -> 7
-    elevator.tick(); // 7 -> 8, arrives, DoorOpenState, dwell = 3
+    elevator.tick(); // 7 -> 8, arrives, DoorOpenState, dwell = DOOR_DWELL_TICKS
 
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
-    elevator.tick(); // dwell 1 -> 0
+    tickThroughDwell(elevator); // dwell counts down to 0, door still OPEN
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 
     elevator.tick(); // dwell expired, queue empty -> Idle
@@ -116,9 +117,7 @@ describe('Elevator state machine', () => {
 
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
-    elevator.tick(); // dwell 1 -> 0
+    tickThroughDwell(elevator); // dwell counts down to 0, door still OPEN
     elevator.tick(); // dwell expired -> should move to MovingUp (12 still queued)
 
     const snapshot = elevator.getSnapshot();
@@ -137,9 +136,7 @@ describe('Elevator state machine', () => {
 
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
-    elevator.tick(); // dwell 1 -> 0
+    tickThroughDwell(elevator); // dwell counts down to 0, door still OPEN
     elevator.tick(); // dwell expired -> only 2 remains (below) -> MovingDown
 
     const snapshot = elevator.getSnapshot();
@@ -282,16 +279,16 @@ describe('Elevator stop-queue insertion contract (AD-6)', () => {
 describe('Elevator.openDoor() / closeDoor() (Door Hold/Close commands, AD-2)', () => {
   it('openDoor(): in DoorOpenState, resets the dwell timer so the door stays open longer', () => {
     const elevator = new Elevator('E1', 5);
-    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = DOOR_DWELL_TICKS
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
+    elevator.tick(); // dwell decrements by 1
+    elevator.tick(); // dwell decrements by 1 again
 
     const result = elevator.openDoor();
     expect(result).toBe(true);
 
-    // Dwell was reset to 3: two more ticks (3 -> 2 -> 1) still leave doors open.
+    // Dwell was reset to DOOR_DWELL_TICKS: two more ticks still leave doors open.
     elevator.tick();
     elevator.tick();
     expect(elevator.getSnapshot().doorState).toBe('OPEN');
@@ -310,7 +307,7 @@ describe('Elevator.openDoor() / closeDoor() (Door Hold/Close commands, AD-2)', (
 
   it('closeDoor(): in DoorOpenState, forces remaining dwell to 0; door begins closing next tick', () => {
     const elevator = new Elevator('E1', 5);
-    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = DOOR_DWELL_TICKS
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
     expect(elevator.getSnapshot().doorState).toBe('OPEN');
 
@@ -340,17 +337,15 @@ describe('Elevator.openDoor() / closeDoor() (Door Hold/Close commands, AD-2)', (
 
   it('openDoor(): still in DoorOpenState with dwell already at 0 (boundary right before closing): resets dwell back up, door stays open past the tick that would have closed it', () => {
     const elevator = new Elevator('E1', 5);
-    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
-    elevator.tick(); // dwell 1 -> 0, door still OPEN (DoorOpenState only closes on the *next* tick after reaching 0)
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = DOOR_DWELL_TICKS
+    tickThroughDwell(elevator); // dwell counts down to 0, door still OPEN (DoorOpenState only closes on the *next* tick after reaching 0)
     expect(elevator.getDwellTicksRemaining()).toBe(0);
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 
     const result = elevator.openDoor();
 
     expect(result).toBe(true);
-    expect(elevator.getDwellTicksRemaining()).toBe(3);
+    expect(elevator.getDwellTicksRemaining()).toBe(DOOR_DWELL_TICKS);
     // The tick that would have closed the door (dwell already 0) instead sees
     // a freshly-reset dwell, so the door stays open.
     elevator.tick();
@@ -360,10 +355,8 @@ describe('Elevator.openDoor() / closeDoor() (Door Hold/Close commands, AD-2)', (
 
   it('closeDoor(): still in DoorOpenState with dwell already at 0 (boundary right before closing): no-ops the timer (already 0), door closes on the very next tick regardless', () => {
     const elevator = new Elevator('E1', 5);
-    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = 3
-    elevator.tick(); // dwell 3 -> 2
-    elevator.tick(); // dwell 2 -> 1
-    elevator.tick(); // dwell 1 -> 0, door still OPEN
+    elevator.assignHallCall(5); // same-floor fast path: opens doors immediately, dwell = DOOR_DWELL_TICKS
+    tickThroughDwell(elevator); // dwell counts down to 0, door still OPEN
     expect(elevator.getDwellTicksRemaining()).toBe(0);
     expect(elevator.getSnapshot().stateName).toBe('DOOR_OPEN');
 

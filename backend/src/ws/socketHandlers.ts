@@ -92,11 +92,13 @@ export function registerSocketHandlers(socket: Socket, building: Building, getTi
 
   socket.on('hallCall', (payload: unknown) => {
     if (!isValidHallCallPayload(payload)) return;
+    if (payload.floor < 1 || payload.floor > building.getFloorCount()) return;
     building.handleHallCall(payload.floor, payload.direction);
   });
 
   socket.on('carCall', (payload: unknown) => {
     if (!isValidCarCallPayload(payload)) return;
+    if (payload.floor < 1 || payload.floor > building.getFloorCount()) return;
     building.handleCarCall(payload.elevatorId, payload.floor);
   });
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Building } from './Building.js';
+import { DOOR_DWELL_TICKS } from './Elevator.js';
+
+/** Ticks a Building through one elevator's full dwell countdown (door still OPEN after this). */
+function tickThroughDwell(building: Building): void {
+  for (let i = 0; i < DOOR_DWELL_TICKS; i++) building.tick();
+}
 
 describe('Building construction', () => {
   it('default construction: 3 Elevators created, all Idle at floor 1; getElevatorSnapshots() returns 3 entries', () => {
@@ -51,7 +57,7 @@ describe('Building.tick() reevaluatePending ordering (AD-7)', () => {
     const building = new Building({ floors: 10, elevatorCount: 1 });
 
     // Send the sole elevator on a one-tick trip to floor 2, arriving with
-    // doors opened and a DOOR_DWELL_TICKS-tick (3) dwell countdown. We need
+    // doors opened and a DOOR_DWELL_TICKS-tick dwell countdown. We need
     // a pending call that can't be served until the elevator later goes
     // Idle, and we assert it's served in the very same tick() call the
     // elevator empties its queue and goes Idle.
@@ -63,15 +69,13 @@ describe('Building.tick() reevaluatePending ordering (AD-7)', () => {
     building.handleHallCall(2, 'DOWN');
     expect(building.getPendingCalls()).toEqual([{ floor: 2, direction: 'DOWN' }]);
 
-    building.tick(); // 1 -> 2, arrives, door opens (dwell = 3)
+    building.tick(); // 1 -> 2, arrives, door opens (dwell = DOOR_DWELL_TICKS)
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
 
-    // Three ticks decrement the dwell counter 3 -> 2 -> 1 -> 0 (door still OPEN).
-    building.tick();
-    building.tick();
-    building.tick();
+    // DOOR_DWELL_TICKS ticks decrement the dwell counter to 0 (door still OPEN).
+    tickThroughDwell(building);
 
-    // The 4th dwell-phase tick is the one where DoorOpenState sees dwell
+    // The next dwell-phase tick is the one where DoorOpenState sees dwell
     // already at 0: it closes the door, finds the queue empty, and
     // transitions to Idle -- all inside Elevator.tick(), which Building.tick()
     // calls before its single end-of-tick reevaluatePending(). That same
@@ -110,7 +114,8 @@ describe('Building coordinates multiple independent elevators', () => {
     building.handleHallCall(3, 'UP'); // only idle E2 is eligible now (E1 already passed floor 3, heading further up)
     expect(building.getElevatorSnapshots()[1]?.direction).toBe('UP');
     expect(building.getElevatorSnapshots()[1]?.stopQueue).toContain(3);
-    for (let i = 0; i < 10; i++) {
+    // 2 movement ticks (1 -> 3) + DOOR_DWELL_TICKS dwell ticks + 1 closing tick, with margin.
+    for (let i = 0; i < DOOR_DWELL_TICKS + 10; i++) {
       building.tick();
       if (building.getElevatorSnapshots()[1]?.stateName === 'IDLE') break;
     }
@@ -170,17 +175,15 @@ describe('Building.tick() resolves multiple simultaneously-eligible pending call
     ]);
 
     building.tick(); // 1 -> 2 for both, arrive? no (target 3) -- both still MOVING_UP
-    building.tick(); // 2 -> 3 for both: both arrive, doors open, dwell = 3
+    building.tick(); // 2 -> 3 for both: both arrive, doors open, dwell = DOOR_DWELL_TICKS
     expect(building.getElevatorSnapshots().every((s) => s.currentFloor === 3 && s.doorState === 'OPEN')).toBe(true);
 
-    // Three dwell ticks bring both to dwell = 0 (still OPEN); the 4th
-    // dwell-phase tick is the one where each elevator's DoorOpenState
+    // DOOR_DWELL_TICKS dwell ticks bring both to dwell = 0 (still OPEN); the
+    // next dwell-phase tick is the one where each elevator's DoorOpenState
     // closes the door, finds its own queue empty, and goes Idle -- both
     // in the same Building.tick() call, since Building ticks every
     // elevator (fixed order) before its single end-of-tick reevaluatePending().
-    building.tick();
-    building.tick();
-    building.tick();
+    tickThroughDwell(building);
     building.tick();
 
     expect(building.getPendingCalls()).toEqual([]);
@@ -318,7 +321,8 @@ describe('Building.getActiveHallCalls (Story 2.3, FR-2)', () => {
     const building = new Building({ floors: 10, elevatorCount: 1 });
     // E1 starts at floor 1; move it to floor 5 and let it settle Idle there.
     building.handleHallCall(5, 'UP');
-    for (let i = 0; i < 10; i++) {
+    // 4 movement ticks (1 -> 5) + DOOR_DWELL_TICKS dwell ticks + 1 closing tick, with margin.
+    for (let i = 0; i < DOOR_DWELL_TICKS + 10; i++) {
       building.tick();
       if (building.getElevatorSnapshots()[0]?.stateName === 'IDLE') break;
     }
@@ -336,8 +340,9 @@ describe('Building.getActiveHallCalls (Story 2.3, FR-2)', () => {
     building.handleHallCall(1, 'UP'); // same-floor fast path: E1 opens doors at floor 1 immediately
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
     building.handleCarCall('E1', 8); // Car Call queues floor 8 while doors are open at 1
-    // Let the door-close cycle complete so E1 starts moving toward 8.
-    for (let i = 0; i < 5; i++) {
+    // Let the door-close cycle complete so E1 starts moving toward 8:
+    // DOOR_DWELL_TICKS dwell ticks + 1 closing tick, with margin.
+    for (let i = 0; i < DOOR_DWELL_TICKS + 5; i++) {
       building.tick();
       if (building.getElevatorSnapshots()[0]?.stateName === 'MOVING_UP') break;
     }
@@ -395,15 +400,15 @@ describe('Building.handleCarCall routing (FR-4)', () => {
 describe('Building.handleDoorHold routing (FR-5)', () => {
   it('resets the named elevator dwell timer while its doors are open', () => {
     const building = new Building({ floors: 10, elevatorCount: 1 });
-    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = 3
-    building.tick(); // dwell 3 -> 2
-    building.tick(); // dwell 2 -> 1
+    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = DOOR_DWELL_TICKS
+    building.tick(); // dwell decrements by 1
+    building.tick(); // dwell decrements by 1 again
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
 
     building.handleDoorHold('E1');
 
-    building.tick(); // dwell reset to 3, now 3 -> 2
-    building.tick(); // 2 -> 1
+    building.tick(); // dwell reset to DOOR_DWELL_TICKS, decrements by 1
+    building.tick(); // decrements by 1 again
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
   });
 
@@ -420,7 +425,7 @@ describe('Building.handleDoorHold routing (FR-5)', () => {
 describe('Building.handleDoorClose routing (FR-5)', () => {
   it('forces the named elevator dwell to 0; door begins closing next tick', () => {
     const building = new Building({ floors: 10, elevatorCount: 1 });
-    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = 3
+    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = DOOR_DWELL_TICKS
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
 
     building.handleDoorClose('E1');

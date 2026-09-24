@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Dispatcher } from './Dispatcher.js';
-import { Elevator } from './Elevator.js';
+import { DOOR_DWELL_TICKS, Elevator } from './Elevator.js';
 import { NearestCarStrategy } from './scheduling/NearestCarStrategy.js';
 import type { SchedulingStrategy } from './scheduling/SchedulingStrategy.js';
+
+/** Ticks an elevator through its full dwell countdown plus the tick that acts on expiry. */
+function tickThroughDoorClose(elevator: Elevator): void {
+  for (let i = 0; i < DOOR_DWELL_TICKS + 1; i++) elevator.tick();
+}
 
 describe('Dispatcher.handleHallCall', () => {
   it('calls strategy.selectElevator exactly once, without inspecting its concrete type', () => {
@@ -148,10 +153,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
     elevator.tick(); // 3 -> 2
     elevator.tick(); // 2 -> 1, arrives, door opens
     expect(elevator.getSnapshot().doorState).toBe('OPEN');
-    elevator.tick(); // dwell 1 (3 -> 2 remaining)
-    elevator.tick(); // dwell 2 (2 -> 1 remaining)
-    elevator.tick(); // dwell 3 (1 -> 0 remaining)
-    elevator.tick(); // remaining is 0 -> door closes, queue empty -> Idle
+    tickThroughDoorClose(elevator); // dwell counts down, then door closes, queue empty -> Idle
     expect(elevator.getSnapshot().stateName).toBe('IDLE');
     expect(elevator.getSnapshot().direction).toBe('IDLE');
 
@@ -191,7 +193,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
     // Ride down to floor 1: arrives, dwells, queue empties -> Idle (eligible for anything).
     for (let i = 0; i < 8; i++) elevator.tick(); // 9 -> 1, arrives, door opens
-    for (let i = 0; i < 4; i++) elevator.tick(); // dwell (3 ticks) + 1 more -> door closes, queue empty -> Idle
+    tickThroughDoorClose(elevator); // dwell counts down, then door closes, queue empty -> Idle
     expect(elevator.getSnapshot().stateName).toBe('IDLE');
 
     dispatcher.reevaluatePending();
@@ -221,7 +223,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
     // Ride E1 up to floor 9: arrives, dwells out, queue empty -> Idle.
     for (let i = 0; i < 4; i++) idling.tick(); // 5 -> 9, arrives, door opens
-    for (let i = 0; i < 4; i++) idling.tick(); // dwell (3 ticks) + 1 more -> door closes, queue empty -> Idle
+    tickThroughDoorClose(idling); // dwell counts down, then door closes, queue empty -> Idle
     expect(idling.getSnapshot().stateName).toBe('IDLE');
 
     dispatcher.reevaluatePending();
@@ -244,7 +246,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
     // Tick the elevator all the way to Idle without ever calling reevaluatePending.
     for (let i = 0; i < 8; i++) elevator.tick(); // 9 -> 1, arrives, door opens
-    for (let i = 0; i < 4; i++) elevator.tick(); // dwell (3 ticks) + 1 more -> door closes, queue empty -> Idle
+    tickThroughDoorClose(elevator); // dwell counts down, then door closes, queue empty -> Idle
     expect(elevator.getSnapshot().stateName).toBe('IDLE');
 
     expect(dispatcher.getPendingCalls()).toEqual([{ floor: 5, direction: 'UP' }]);
@@ -280,7 +282,7 @@ describe('Dispatcher Pending Call re-evaluation', () => {
 
     // Ride up to floor 5: arrives, dwells, queue empties -> Idle at floor 5.
     for (let i = 0; i < 4; i++) elevator.tick(); // 1 -> 5, arrives, door opens
-    for (let i = 0; i < 4; i++) elevator.tick(); // dwell (3 ticks) + 1 more -> door closes, queue empty -> Idle
+    tickThroughDoorClose(elevator); // dwell counts down, then door closes, queue empty -> Idle
     expect(elevator.getSnapshot().stateName).toBe('IDLE');
     expect(elevator.getSnapshot().currentFloor).toBe(5);
     expect(elevator.getSnapshot().doorState).toBe('CLOSED');

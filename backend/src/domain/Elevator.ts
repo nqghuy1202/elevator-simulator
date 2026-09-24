@@ -5,8 +5,8 @@ import { ElevatorState } from './states/ElevatorState.js';
 import { IdleState } from './states/IdleState.js';
 import { DoorOpenState } from './states/DoorOpenState.js';
 
-/** Dwell duration, in ticks, that `DoorOpenState` holds the door open before deciding what's next. */
-export const DOOR_DWELL_TICKS = 3;
+/** Dwell duration, in ticks, that `DoorOpenState` holds the door open before deciding what's next. At 500ms/tick, 10 ticks is ~5s. */
+export const DOOR_DWELL_TICKS = 10;
 
 export type { ElevatorSnapshot };
 
@@ -83,8 +83,8 @@ export class Elevator {
   /**
    * Assign a Car Call at `floor` (in-cabin button press). Routes through
    * `insertStop` like `assignHallCall` does. Returns whether the floor was
-   * actually queued. Not yet wired to any caller in production code —
-   * Epic 2 introduces the in-cabin control surface that will call this.
+   * actually queued. Wired to the in-cabin control surface via
+   * `Building.handleCarCall`.
    */
   assignCarCall(floor: number): boolean {
     const inserted = this.insertStop(floor);

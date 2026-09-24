@@ -1,0 +1,33 @@
+.app {
+  min-height: 100vh;
+  padding: var(--space-6);
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.app__title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.app__dashboard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.app__shaft-view {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.app__loading {
+  color: var(--color-muted-foreground);
+}

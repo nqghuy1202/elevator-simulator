@@ -1,4 +1,6 @@
+import { ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import type { PendingHallCall } from 'shared/src/index.js';
+import './FloorHallPanel.css';
 
 export interface FloorHallPanelProps {
   readonly floor: number;
@@ -25,17 +27,33 @@ export function FloorHallPanel({ floor, floors, activeHallCalls, onHallCall }: F
   const showDown = floor > 1;
 
   return (
-    <div>
-      <span>Floor {floor}</span>
-      {showUp && (
-        <button type="button" aria-label={`Hall call up floor ${floor}`} onClick={() => onHallCall(floor, 'UP')}>
-          UP{isActive('UP') ? ' (pending)' : ''}
+    <div className="floor-hall-panel">
+      <span className="floor-hall-panel__label">Floor {floor}</span>
+      {showUp ? (
+        <button
+          type="button"
+          aria-label={`Hall call up floor ${floor}`}
+          className={`floor-hall-panel__button${isActive('UP') ? ' floor-hall-panel__button--pending' : ''}`}
+          onClick={() => onHallCall(floor, 'UP')}
+        >
+          <ArrowUp size={16} weight="bold" aria-hidden="true" />
+          {isActive('UP') && <span className="sr-only">pending</span>}
         </button>
+      ) : (
+        <span className="floor-hall-panel__spacer" aria-hidden="true" />
       )}
-      {showDown && (
-        <button type="button" aria-label={`Hall call down floor ${floor}`} onClick={() => onHallCall(floor, 'DOWN')}>
-          DOWN{isActive('DOWN') ? ' (pending)' : ''}
+      {showDown ? (
+        <button
+          type="button"
+          aria-label={`Hall call down floor ${floor}`}
+          className={`floor-hall-panel__button${isActive('DOWN') ? ' floor-hall-panel__button--pending' : ''}`}
+          onClick={() => onHallCall(floor, 'DOWN')}
+        >
+          <ArrowDown size={16} weight="bold" aria-hidden="true" />
+          {isActive('DOWN') && <span className="sr-only">pending</span>}
         </button>
+      ) : (
+        <span className="floor-hall-panel__spacer" aria-hidden="true" />
       )}
     </div>
   );

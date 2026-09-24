@@ -77,6 +77,18 @@ describe('registerSocketHandlers: hallCall', () => {
     expect(assigned).toBeDefined();
     expect(building.getActiveHallCalls()).toEqual([{ floor: 5, direction: 'UP' }]);
   });
+
+  it('hallCall with an out-of-range floor is a silent no-op, never a permanently-stuck pending call', () => {
+    const building = new Building({ floors: 10, elevatorCount: 3 });
+    const { socket, trigger } = createFakeSocket();
+    registerSocketHandlers(socket, building, () => 0);
+
+    trigger('hallCall', { floor: 99999, direction: 'UP' });
+    trigger('hallCall', { floor: 0, direction: 'DOWN' });
+
+    expect(building.getPendingCalls()).toEqual([]);
+    expect(building.getActiveHallCalls()).toEqual([]);
+  });
 });
 
 describe('registerSocketHandlers: carCall', () => {
@@ -92,21 +104,32 @@ describe('registerSocketHandlers: carCall', () => {
 
     expect(building.getElevatorSnapshots()[0]?.stopQueue).toContain(7);
   });
+
+  it('carCall with an out-of-range floor is a silent no-op', () => {
+    const building = new Building({ floors: 10, elevatorCount: 1 });
+    building.handleHallCall(1, 'UP'); // same-floor fast path: E1 opens its doors at floor 1 immediately
+    const { socket, trigger } = createFakeSocket();
+    registerSocketHandlers(socket, building, () => 0);
+
+    trigger('carCall', { elevatorId: 'E1', floor: 42 });
+
+    expect(building.getElevatorSnapshots()[0]?.stopQueue).toEqual([]);
+  });
 });
 
 describe('registerSocketHandlers: doorHold', () => {
   it('doorHold {elevatorId:"E1"} resets the dwell timer while E1 is in DoorOpenState', () => {
     const building = new Building({ floors: 10, elevatorCount: 1 });
-    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = 3
-    building.tick(); // dwell 3 -> 2
-    building.tick(); // dwell 2 -> 1
+    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = DOOR_DWELL_TICKS
+    building.tick(); // dwell decrements by 1
+    building.tick(); // dwell decrements by 1 again
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
 
     const { socket, trigger } = createFakeSocket();
     registerSocketHandlers(socket, building, () => 0);
     trigger('doorHold', { elevatorId: 'E1' });
 
-    // Dwell was reset to 3: two more ticks (3 -> 2 -> 1) still leave doors open.
+    // Dwell was reset to DOOR_DWELL_TICKS: two more ticks still leave doors open.
     building.tick();
     building.tick();
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
@@ -116,7 +139,7 @@ describe('registerSocketHandlers: doorHold', () => {
 describe('registerSocketHandlers: doorClose', () => {
   it('doorClose {elevatorId:"E1"} forces dwell to 0; door begins closing next tick', () => {
     const building = new Building({ floors: 10, elevatorCount: 1 });
-    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = 3
+    building.handleHallCall(1, 'UP'); // opens doors immediately, dwell = DOOR_DWELL_TICKS
     expect(building.getElevatorSnapshots()[0]?.doorState).toBe('OPEN');
 
     const { socket, trigger } = createFakeSocket();
