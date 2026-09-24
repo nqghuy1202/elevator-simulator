@@ -37,10 +37,12 @@ function makeSnapshot(tick: number): BuildingSnapshot {
 }
 
 let capturedEmitHallCall: ((floor: number, direction: 'UP' | 'DOWN') => void) | undefined;
+let capturedEmitCarCall: ((elevatorId: string, floor: number) => void) | undefined;
 
 function TestHarness() {
-  const { emitHallCall } = useBuildingSocket();
+  const { emitHallCall, emitCarCall } = useBuildingSocket();
   capturedEmitHallCall = emitHallCall;
+  capturedEmitCarCall = emitCarCall;
   return null;
 }
 
@@ -62,6 +64,7 @@ beforeEach(() => {
   fakeSocket.emit.mockClear();
   fakeSocket.close.mockClear();
   capturedEmitHallCall = undefined;
+  capturedEmitCarCall = undefined;
   cleanup();
 });
 
@@ -109,6 +112,16 @@ describe('useBuildingSocket: emitHallCall', () => {
     capturedEmitHallCall?.(5, 'UP');
 
     expect(fakeSocket.emit).toHaveBeenCalledWith('hallCall', { floor: 5, direction: 'UP' });
+  });
+});
+
+describe('useBuildingSocket: emitCarCall', () => {
+  it('emits a carCall event with {elevatorId, floor} on the held socket', () => {
+    renderWithStore();
+
+    capturedEmitCarCall?.('E1', 8);
+
+    expect(fakeSocket.emit).toHaveBeenCalledWith('carCall', { elevatorId: 'E1', floor: 8 });
   });
 });
 

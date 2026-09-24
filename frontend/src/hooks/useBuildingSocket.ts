@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { BuildingStateEvent, Direction, HallCallPayload } from 'shared/src/index.js';
+import type { BuildingStateEvent, CarCallPayload, Direction, HallCallPayload } from 'shared/src/index.js';
 import { useAppDispatch } from '../store/index.js';
 import { connectionReset, snapshotReceived } from '../store/buildingSlice.js';
 import { connectionStatusChanged } from '../store/uiSlice.js';
@@ -19,6 +19,12 @@ export interface UseBuildingSocketResult {
    * connect effect runs, and optional chaining below makes that safe.
    */
   emitHallCall(floor: number, direction: Exclude<Direction, 'IDLE'>): void;
+
+  /**
+   * Emit a `carCall` event on the held socket (Story 2.4), mirroring
+   * `emitHallCall`'s no-op-if-not-yet-connected behavior.
+   */
+  emitCarCall(elevatorId: string, floor: number): void;
 }
 
 /**
@@ -29,8 +35,8 @@ export interface UseBuildingSocketResult {
  * dispatches `snapshotReceived` on every server `buildingState` broadcast.
  *
  * Returns `{ emitHallCall }` (Story 2.3) for client -> server Hall Call
- * requests; carCall/doorHold/doorClose follow the same pattern in Stories
- * 2.4/2.5.
+ * requests and `{ emitCarCall }` (Story 2.4) for Car Call requests;
+ * doorHold/doorClose follow the same pattern in Story 2.5.
  */
 export function useBuildingSocket(): UseBuildingSocketResult {
   const dispatch = useAppDispatch();
@@ -73,5 +79,10 @@ export function useBuildingSocket(): UseBuildingSocketResult {
     socketRef.current?.emit('hallCall', payload);
   }, []);
 
-  return { emitHallCall };
+  const emitCarCall = useCallback((elevatorId: string, floor: number) => {
+    const payload: CarCallPayload = { elevatorId, floor };
+    socketRef.current?.emit('carCall', payload);
+  }, []);
+
+  return { emitHallCall, emitCarCall };
 }
